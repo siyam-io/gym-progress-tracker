@@ -34,6 +34,7 @@ export const viewport: Viewport = {
 import { BottomNav } from "@/components/navigation/BottomNav";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { ToastContainer } from "@/components/ui/ToastContainer";
 
 export default function RootLayout({
   children,
@@ -47,6 +48,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
         <AuthProvider>
+          <ToastContainer />
           <ServiceWorkerRegister />
           {children}
           <BottomNav />

@@ -24,6 +24,8 @@ import {
 import { CreateRoutineModal } from "@/components/routine/CreateRoutineModal";
 import { AuthButton } from "@/components/auth/AuthButton";
 import { DailyWeightCard } from "@/components/weight/DailyWeightCard";
+import { SyncStatusBadge } from "@/components/navigation/SyncStatusBadge";
+import { RoutineCardSkeleton } from "@/components/ui/Skeleton";
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -109,6 +111,7 @@ export default function HomeDashboard() {
         </div>
 
         <div className="flex items-center gap-2">
+          <SyncStatusBadge />
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-emerald-400">
             <Flame className="w-3.5 h-3.5 text-amber-400" />
             <span>{streakData.completedCount}</span>
@@ -195,8 +198,9 @@ export default function HomeDashboard() {
           </div>
 
           {isLoading ? (
-            <div className="py-12 text-center text-zinc-500 text-xs">
-              Loading routines...
+            <div className="space-y-3">
+              <RoutineCardSkeleton />
+              <RoutineCardSkeleton />
             </div>
           ) : routines.length === 0 ? (
             <div className="text-center py-10 border border-dashed border-zinc-800 rounded-2xl p-6">

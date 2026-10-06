@@ -16,6 +16,7 @@ import {
 import { db, LocalWorkoutSession, initializeLocalDb } from "@/lib/db/dexie";
 import { SessionDetailModal } from "@/components/history/SessionDetailModal";
 import { BackupModal } from "@/components/history/BackupModal";
+import { HistoryCardSkeleton } from "@/components/ui/Skeleton";
 
 interface WorkoutHistoryItem extends LocalWorkoutSession {
   completedSetsCount: number;
@@ -311,7 +312,11 @@ export default function HistoryPage() {
           </div>
 
           {isLoading ? (
-            <div className="py-16 text-center text-zinc-500 text-xs">Loading workout log...</div>
+            <div className="space-y-3">
+              <HistoryCardSkeleton />
+              <HistoryCardSkeleton />
+              <HistoryCardSkeleton />
+            </div>
           ) : filteredSessions.length === 0 ? (
             <div className="text-center py-12 border border-dashed border-zinc-800 rounded-2xl p-6">
               <Dumbbell className="w-8 h-8 text-zinc-600 mx-auto mb-2" />

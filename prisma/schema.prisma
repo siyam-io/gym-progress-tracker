@@ -99,6 +99,8 @@ model Exercise {
 
   @@index([userId])
   @@index([name])
+  @@index([primaryMuscle])
+  @@index([category])
 }
 
 model Routine {
@@ -150,6 +152,7 @@ model WorkoutSession {
   @@index([userId])
   @@index([status])
   @@index([startTime])
+  @@index([userId, status])
 }
 
 model SetLog {
@@ -171,6 +174,8 @@ model SetLog {
 
   @@index([sessionId])
   @@index([exerciseId])
+  @@index([createdAt])
+  @@index([isPR])
 }
 
 model BodyWeightLog {

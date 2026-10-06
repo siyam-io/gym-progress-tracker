@@ -1,12 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { z } from "zod";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { checkRateLimit } from "@/lib/security/rate-limit";
+import { apiSuccess, apiError } from "@/lib/security/api-response";
 
-export async function GET() {
+const CreateWeightLogSchema = z.object({
+  id: z.string().optional(),
+  weight: z.number().positive().max(500),
+  unit: z.enum(["kg", "lbs"]).default("kg"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  note: z.string().max(250).nullable().optional(),
+});
+
+export async function GET(req: NextRequest) {
+  const rateLimit = checkRateLimit(req, "weight-get", { limit: 60, windowMs: 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return apiError("Too many requests", 429, undefined, rateLimit);
+  }
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ logs: [] });
+      return apiSuccess({ logs: [] }, { rateLimit });
     }
 
     const logs = await prisma.bodyWeightLog.findMany({
@@ -15,28 +31,39 @@ export async function GET() {
       take: 60,
     });
 
-    return NextResponse.json({ logs });
+    return apiSuccess({ logs }, { rateLimit });
   } catch (err: unknown) {
     console.error("GET /api/weight error:", err);
-    return NextResponse.json({ error: "Failed to fetch weights" }, { status: 500 });
+    return apiError("Failed to fetch weights", 500, undefined, rateLimit);
   }
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimit = checkRateLimit(req, "weight-post", { limit: 30, windowMs: 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return apiError("Too many requests", 429, undefined, rateLimit);
+  }
+
   try {
     const session = await auth();
-    const body = await req.json();
+    const rawBody = await req.json();
 
-    const { id, weight, unit = "kg", date, note } = body;
-    if (!weight || !date) {
-      return NextResponse.json({ error: "Weight and date are required" }, { status: 400 });
+    const parseResult = CreateWeightLogSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      return apiError(
+        "Invalid weight log payload",
+        400,
+        parseResult.error.flatten(),
+        rateLimit
+      );
     }
 
+    const { id, weight, unit, date, note } = parseResult.data;
     const userId = session?.user?.id || null;
 
     if (!userId) {
       // Unauthenticated, client stores in local Dexie IndexedDB
-      return NextResponse.json({ success: true, localOnly: true });
+      return apiSuccess({ localOnly: true }, { rateLimit });
     }
 
     // Upsert by userId + date
@@ -48,38 +75,43 @@ export async function POST(req: NextRequest) {
         },
       },
       update: {
-        weight: Number(weight),
+        weight,
         unit,
         note: note || null,
       },
       create: {
         id: id || undefined,
         userId,
-        weight: Number(weight),
+        weight,
         unit,
         date,
         note: note || null,
       },
     });
 
-    return NextResponse.json({ success: true, log });
+    return apiSuccess({ log }, { rateLimit });
   } catch (err: unknown) {
     console.error("POST /api/weight error:", err);
-    return NextResponse.json({ error: "Failed to save weight" }, { status: 500 });
+    return apiError("Failed to save weight", 500, undefined, rateLimit);
   }
 }
 
 export async function DELETE(req: NextRequest) {
+  const rateLimit = checkRateLimit(req, "weight-delete", { limit: 30, windowMs: 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return apiError("Too many requests", 429, undefined, rateLimit);
+  }
+
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ success: true, localOnly: true });
+      return apiSuccess({ localOnly: true }, { rateLimit });
     }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) {
-      return NextResponse.json({ error: "Missing log ID" }, { status: 400 });
+      return apiError("Missing log ID", 400, undefined, rateLimit);
     }
 
     await prisma.bodyWeightLog.deleteMany({
@@ -89,9 +121,9 @@ export async function DELETE(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true });
+    return apiSuccess({ deleted: true }, { rateLimit });
   } catch (err: unknown) {
     console.error("DELETE /api/weight error:", err);
-    return NextResponse.json({ error: "Failed to delete weight" }, { status: 500 });
+    return apiError("Failed to delete weight", 500, undefined, rateLimit);
   }
 }

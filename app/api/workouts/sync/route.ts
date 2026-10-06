@@ -57,8 +57,24 @@ const SyncBatchRequestSchema = z.object({
 });
 
 import { auth } from "@/auth";
+import { checkRateLimit } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
+  const rateLimit = checkRateLimit(req, "sync-post", { limit: 60, windowMs: 60 * 1000 });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { success: false, error: "Too many sync requests. Please retry in a moment." },
+      {
+        status: 429,
+        headers: {
+          "X-RateLimit-Limit": rateLimit.limit.toString(),
+          "X-RateLimit-Remaining": "0",
+          "X-RateLimit-Reset": Math.ceil(rateLimit.resetTime / 1000).toString(),
+        },
+      }
+    );
+  }
+
   try {
     const session = await auth();
     const authenticatedUserId = session?.user?.id ?? null;

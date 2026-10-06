@@ -20,6 +20,7 @@ import {
   LocalBodyWeightLog,
 } from "@/lib/db/dexie";
 import { useSession } from "next-auth/react";
+import { toast } from "@/stores/useToastStore";
 
 export function DailyWeightCard() {
   const { data: session } = useSession();
@@ -77,16 +78,24 @@ export function DailyWeightCard() {
       await loadWeightData();
       setShowLogModal(false);
       setInputNote("");
+      toast.success("Body weight logged! ⚖️");
     } catch (err) {
       console.error("Failed to save body weight:", err);
+      toast.error("Failed to save weight entry.");
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    await deleteBodyWeightLog(id);
-    await loadWeightData();
+    try {
+      await deleteBodyWeightLog(id);
+      await loadWeightData();
+      toast.info("Weight log entry removed.");
+    } catch (err) {
+      console.error("Failed to delete weight log:", err);
+      toast.error("Failed to delete weight entry.");
+    }
   };
 
   return (

@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/dexie";
 import { checkIfPR } from "@/lib/utils/pr-calculator";
 import { playPRFanfare, playTimerCompleteSound, playTapSound } from "@/lib/utils/audio-feedback";
+import { toast } from "@/stores/useToastStore";
 
 export interface ExerciseGroup {
   exercise: LocalExercise;
@@ -393,6 +394,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       if (isPR) {
         playPRFanfare();
+        toast.success(`🔥 NEW PR: ${group.exercise.name} ${targetSet.weight}kg × ${targetSet.reps}!`);
       } else {
         playTapSound();
       }

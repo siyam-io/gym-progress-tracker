@@ -11,6 +11,8 @@ import {
   Trash2,
   Trophy,
   Flame,
+  Disc3,
+  Share2,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import { initializeLocalDb, DEFAULT_EXERCISES, processSyncQueue, LocalExercise } from "@/lib/db/dexie";
@@ -19,6 +21,8 @@ import { RestTimerBar } from "@/components/workout/RestTimerBar";
 import { AddExerciseModal } from "@/components/workout/AddExerciseModal";
 import { ExerciseThumbnail } from "@/components/exercises/ExerciseThumbnail";
 import { AnatomicalFormModal } from "@/components/exercises/AnatomicalFormModal";
+import { PlateCalculatorModal } from "@/components/workout/PlateCalculatorModal";
+import { toast } from "@/stores/useToastStore";
 
 export default function ActiveWorkoutPage() {
   const {
@@ -38,6 +42,7 @@ export default function ActiveWorkoutPage() {
   const [isOnline, setIsOnline] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [showPlateCalculator, setShowPlateCalculator] = useState(false);
   const [anatomicalModalExercise, setAnatomicalModalExercise] = useState<LocalExercise | null>(null);
   const [completedSummary, setCompletedSummary] = useState<{
     title: string;
@@ -131,9 +136,23 @@ export default function ActiveWorkoutPage() {
       prCount,
     });
     setShowSummaryModal(true);
+    toast.success("Workout Complete! Fantastic session! 🎉");
 
     // Trigger sync
     void processSyncQueue();
+  };
+
+  const handleShareSummary = async () => {
+    if (!completedSummary) return;
+    const summaryText = `🏋️ PULSE GYM WORKOUT: ${completedSummary.title}\n⏱️ Time: ${formatDuration(completedSummary.durationSec)}\n💪 Volume: ${completedSummary.totalVolume.toLocaleString()} kg\n🏆 PRs: ${completedSummary.prCount}\nTracked with PULSE Gym`;
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(summaryText);
+        toast.success("Workout summary copied to clipboard! 📋");
+      } catch {
+        toast.error("Failed to copy summary to clipboard.");
+      }
+    }
   };
 
   const handleDiscard = async () => {
@@ -271,13 +290,24 @@ export default function ActiveWorkoutPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setShowSummaryModal(false)}
-                className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-sm active:scale-95 transition-all"
-              >
-                Done
-              </button>
+              <div className="flex gap-2 w-full">
+                <button
+                  type="button"
+                  onClick={handleShareSummary}
+                  className="flex-1 py-3.5 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 text-zinc-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                >
+                  <Share2 className="w-4 h-4 text-emerald-400" />
+                  <span>Share</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowSummaryModal(false)}
+                  className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs uppercase tracking-wider active:scale-95 transition-all"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -321,15 +351,26 @@ export default function ActiveWorkoutPage() {
           </div>
         </div>
 
-        {/* Finish Workout CTA */}
-        <button
-          type="button"
-          onClick={handleFinish}
-          className="h-10 min-h-[44px] px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
-        >
-          <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-          <span>Finish</span>
-        </button>
+        {/* Action Controls */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowPlateCalculator(true)}
+            className="h-10 w-10 min-w-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-emerald-500/40 text-zinc-300 hover:text-emerald-400 flex items-center justify-center transition-colors shadow-sm"
+            title="Barbell Plate Calculator"
+          >
+            <Disc3 className="w-4 h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleFinish}
+            className="h-10 min-h-[44px] px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+          >
+            <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+            <span>Finish</span>
+          </button>
+        </div>
       </header>
 
       {/* Main Exercise Cards List */}
@@ -455,6 +496,12 @@ export default function ActiveWorkoutPage() {
         exercise={anatomicalModalExercise}
         isOpen={!!anatomicalModalExercise}
         onClose={() => setAnatomicalModalExercise(null)}
+      />
+
+      {/* Barbell Plate Calculator Drawer */}
+      <PlateCalculatorModal
+        isOpen={showPlateCalculator}
+        onClose={() => setShowPlateCalculator(false)}
       />
     </div>
   );

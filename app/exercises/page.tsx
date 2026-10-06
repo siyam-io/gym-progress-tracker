@@ -17,6 +17,7 @@ import { calculate1RM } from "@/lib/utils/pr-calculator";
 import { ExerciseThumbnail } from "@/components/exercises/ExerciseThumbnail";
 import { ExerciseDetailModal } from "@/components/exercises/ExerciseDetailModal";
 import { CreateCustomExerciseModal } from "@/components/exercises/CreateCustomExerciseModal";
+import { ExerciseCardSkeleton } from "@/components/ui/Skeleton";
 
 const CATEGORIES: { label: string; value: ExerciseCategory | "ALL" }[] = [
   { label: "All Equipment", value: "ALL" },
@@ -50,6 +51,12 @@ export default function ExercisesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMuscle, setSelectedMuscle] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | "ALL">("ALL");
+  const [visibleCount, setVisibleCount] = useState(40);
+
+  // Reset pagination on filter change
+  useEffect(() => {
+    setVisibleCount(40);
+  }, [searchQuery, selectedMuscle, selectedCategory]);
 
   // Modals
   const [inspectingExerciseId, setInspectingExerciseId] = useState<string | null>(null);
@@ -260,8 +267,12 @@ export default function ExercisesPage() {
         </div>
 
         {isLoading ? (
-          <div className="py-20 text-center text-zinc-500 text-xs">
-            Loading exercise library...
+          <div className="space-y-2.5">
+            <ExerciseCardSkeleton />
+            <ExerciseCardSkeleton />
+            <ExerciseCardSkeleton />
+            <ExerciseCardSkeleton />
+            <ExerciseCardSkeleton />
           </div>
         ) : filteredExercises.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-zinc-800 rounded-2xl p-6">
@@ -280,79 +291,91 @@ export default function ExercisesPage() {
             </button>
           </div>
         ) : (
-          filteredExercises.map((ex) => {
-            const record = bestRecords.get(ex.id);
+          <>
+            {filteredExercises.slice(0, visibleCount).map((ex) => {
+              const record = bestRecords.get(ex.id);
 
-            return (
-              <button
-                key={ex.id}
-                type="button"
-                onClick={() => setInspectingExerciseId(ex.id)}
-                className="w-full text-left p-3 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 hover:border-zinc-700 flex items-center gap-3 transition-all active:scale-[0.99] group shadow-sm"
-              >
-                {/* Anatomical illustration on the left (aspect-square ~64px) */}
-                <ExerciseThumbnail
-                  imageUrl={ex.imageUrl}
-                  name={ex.name}
-                  size="md"
-                  className="rounded-xl border border-zinc-800 shrink-0"
-                />
+              return (
+                <button
+                  key={ex.id}
+                  type="button"
+                  onClick={() => setInspectingExerciseId(ex.id)}
+                  className="w-full text-left p-3 rounded-2xl bg-zinc-900/70 border border-zinc-800/80 hover:border-zinc-700 flex items-center gap-3 transition-all active:scale-[0.99] group shadow-sm"
+                >
+                  {/* Anatomical illustration on the left (aspect-square ~64px) */}
+                  <ExerciseThumbnail
+                    imageUrl={ex.imageUrl}
+                    name={ex.name}
+                    size="md"
+                    className="rounded-xl border border-zinc-800 shrink-0"
+                  />
 
-                <div className="min-w-0 flex-1 flex flex-col gap-1.5">
-                  <div className="flex items-start justify-between gap-1.5">
-                    <div className="min-w-0 flex-1">
-                      <h3 className="font-extrabold text-xs text-zinc-100 group-hover:text-emerald-300 transition-colors truncate">
-                        {ex.name}
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-zinc-500 font-semibold">
-                          {ex.category}
-                        </span>
-                        <span className="text-zinc-600 text-[10px]">•</span>
-                        <span className="text-[10px] text-emerald-400 font-semibold">
-                          {ex.primaryMuscle}
-                        </span>
-                        {ex.secondaryMuscles.length > 0 && (
-                          <>
-                            <span className="text-zinc-600 text-[10px]">•</span>
-                            <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">
-                              {ex.secondaryMuscles.join(", ")}
-                            </span>
-                          </>
+                  <div className="min-w-0 flex-1 flex flex-col gap-1.5">
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-extrabold text-xs text-zinc-100 group-hover:text-emerald-300 transition-colors truncate">
+                          {ex.name}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-zinc-500 font-semibold">
+                            {ex.category}
+                          </span>
+                          <span className="text-zinc-600 text-[10px]">•</span>
+                          <span className="text-[10px] text-emerald-400 font-semibold">
+                            {ex.primaryMuscle}
+                          </span>
+                          {ex.secondaryMuscles.length > 0 && (
+                            <>
+                              <span className="text-zinc-600 text-[10px]">•</span>
+                              <span className="text-[10px] text-zinc-500 truncate max-w-[120px]">
+                                {ex.secondaryMuscles.join(", ")}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        {ex.isCustom && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700">
+                            Custom
+                          </span>
                         )}
+                        <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      {ex.isCustom && (
-                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700">
-                          Custom
+                    {/* All-Time PR Badge on Card */}
+                    {record && record.e1rm > 0 ? (
+                      <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60 text-[10px] font-mono">
+                        <span className="text-amber-400 font-bold flex items-center gap-1 truncate">
+                          <Trophy className="w-3 h-3 fill-amber-400 shrink-0" />
+                          <span>Best: {record.maxWeight}kg × {record.maxReps}</span>
                         </span>
-                      )}
-                      <ChevronRight className="w-4 h-4 text-zinc-600 group-hover:text-zinc-300 transition-colors" />
-                    </div>
+                        <span className="text-zinc-400 shrink-0 ml-1">
+                          e1RM: <span className="text-emerald-400 font-bold">{record.e1rm}kg</span>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="pt-1 border-t border-zinc-800/60 text-[10px] text-zinc-600 italic">
+                        No completed sets logged yet
+                      </div>
+                    )}
                   </div>
+                </button>
+              );
+            })}
 
-                  {/* All-Time PR Badge on Card */}
-                  {record && record.e1rm > 0 ? (
-                    <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60 text-[10px] font-mono">
-                      <span className="text-amber-400 font-bold flex items-center gap-1 truncate">
-                        <Trophy className="w-3 h-3 fill-amber-400 shrink-0" />
-                        <span>Best: {record.maxWeight}kg × {record.maxReps}</span>
-                      </span>
-                      <span className="text-zinc-400 shrink-0 ml-1">
-                        e1RM: <span className="text-emerald-400 font-bold">{record.e1rm}kg</span>
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="pt-1 border-t border-zinc-800/60 text-[10px] text-zinc-600 italic">
-                      No completed sets logged yet
-                    </div>
-                  )}
-                </div>
+            {visibleCount < filteredExercises.length && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((prev) => prev + 40)}
+                className="w-full py-3.5 rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-emerald-400 text-xs font-bold tracking-wider transition-colors"
+              >
+                Load More Movements ({filteredExercises.length - visibleCount} remaining)
               </button>
-            );
-          })
+            )}
+          </>
         )}
       </main>
 

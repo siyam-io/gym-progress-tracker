@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   X,
   Dumbbell,
@@ -10,6 +10,9 @@ import {
   Clock,
   TrendingUp,
   Layers,
+  Sparkles,
+  AlertCircle,
+  Zap,
 } from "lucide-react";
 import {
   getExerciseDetailHistory,
@@ -17,6 +20,7 @@ import {
   LocalExercise,
   SetType,
 } from "@/lib/db/dexie";
+import { analyzeProgressiveOverload } from "@/lib/utils/progressive-overload";
 import { ExerciseThumbnail } from "./ExerciseThumbnail";
 
 interface ExerciseDetailModalProps {
@@ -68,6 +72,12 @@ export function ExerciseDetailModal({ exerciseId, exercise, onClose }: ExerciseD
         setIsLoading(false);
       });
   }, [exerciseId, exercise]);
+
+  const overloadAnalysis = useMemo(() => {
+    if (!data || data.sessions.length === 0) return null;
+    const allSets = data.sessions.flatMap((s) => s.sets);
+    return analyzeProgressiveOverload(allSets);
+  }, [data]);
 
   if (!exerciseId && !exercise) return null;
 
@@ -175,6 +185,40 @@ export function ExerciseDetailModal({ exerciseId, exercise, onClose }: ExerciseD
                 </span>
               </div>
             </div>
+
+            {/* Progressive Overload Intelligent Advisor */}
+            {overloadAnalysis && (
+              <div
+                className={`p-3.5 rounded-2xl border space-y-1 ${
+                  overloadAnalysis.status === "PROGRESSING"
+                    ? "bg-emerald-950/25 border-emerald-500/40 text-emerald-300"
+                    : overloadAnalysis.status === "PLATEAU"
+                    ? "bg-amber-950/25 border-amber-500/40 text-amber-300"
+                    : overloadAnalysis.status === "DELOAD"
+                    ? "bg-blue-950/25 border-blue-500/40 text-blue-300"
+                    : "bg-zinc-950/60 border-zinc-800 text-zinc-300"
+                }`}
+              >
+                <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider">
+                  {overloadAnalysis.status === "PROGRESSING" && (
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  )}
+                  {overloadAnalysis.status === "PLATEAU" && (
+                    <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  )}
+                  {overloadAnalysis.status === "DELOAD" && (
+                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                  )}
+                  {overloadAnalysis.status === "NEW" && (
+                    <Dumbbell className="w-3.5 h-3.5 text-zinc-400" />
+                  )}
+                  <span>{overloadAnalysis.headline}</span>
+                </div>
+                <p className="text-[11px] text-zinc-300 leading-relaxed">
+                  {overloadAnalysis.recommendation}
+                </p>
+              </div>
+            )}
 
             {/* 1RM Progression Mini Sparkline */}
             {data.progression.length > 1 && (
