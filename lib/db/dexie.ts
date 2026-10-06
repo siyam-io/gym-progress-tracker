@@ -1207,31 +1207,62 @@ export interface ExerciseDetailHistory {
 /**
  * Fetch detailed history for a specific exercise across all workouts
  */
-export async function getExerciseDetailHistory(exerciseId: string): Promise<ExerciseDetailHistory | null> {
-  const exercise = await db.exercises.get(exerciseId);
-  if (!exercise) return null;
+export async function getExerciseDetailHistory(
+  exerciseId: string,
+  fallbackExercise?: LocalExercise
+): Promise<ExerciseDetailHistory | null> {
+  try {
+    let exercise = await db.exercises.get(exerciseId);
+    if (!exercise && fallbackExercise) {
+      exercise = fallbackExercise;
+    }
+    if (!exercise) {
+      exercise = DEFAULT_EXERCISES.find((e) => e.id === exerciseId);
+    }
+    if (!exercise && typeof window !== "undefined") {
+      try {
+        const res = await fetch(`/data/exercises.json`);
+        if (res.ok) {
+          const list: LocalExercise[] = await res.json();
+          exercise = list.find((e) => e.id === exerciseId);
+        }
+      } catch {
+        // fallback ignored
+      }
+    }
+    if (!exercise) return null;
 
-  const sets = await db.setLogs
-    .where("exerciseId")
-    .equals(exerciseId)
-    .filter((s) => s.isCompleted)
-    .toArray();
+    let sets: LocalSetLog[] = [];
+    try {
+      sets = await db.setLogs
+        .where("exerciseId")
+        .equals(exerciseId)
+        .filter((s) => s.isCompleted)
+        .toArray();
+    } catch {
+      sets = [];
+    }
 
-  if (sets.length === 0) {
-    return {
-      exercise,
-      totalSets: 0,
-      maxWeight: 0,
-      maxReps: 0,
-      highest1RM: 0,
-      progression: [],
-      sessions: [],
-    };
-  }
+    if (sets.length === 0) {
+      return {
+        exercise,
+        totalSets: 0,
+        maxWeight: 0,
+        maxReps: 0,
+        highest1RM: 0,
+        progression: [],
+        sessions: [],
+      };
+    }
 
-  const sessionIds = Array.from(new Set(sets.map((s) => s.sessionId)));
-  const sessions = await db.workoutSessions.where("id").anyOf(sessionIds).toArray();
-  const sessionMap = new Map(sessions.map((s) => [s.id, s]));
+    const sessionIds = Array.from(new Set(sets.map((s) => s.sessionId)));
+    let sessions: LocalWorkoutSession[] = [];
+    try {
+      sessions = await db.workoutSessions.where("id").anyOf(sessionIds).toArray();
+    } catch {
+      sessions = [];
+    }
+    const sessionMap = new Map(sessions.map((s) => [s.id, s]));
 
   let maxWeight = 0;
   let maxReps = 0;
@@ -1271,15 +1302,30 @@ export async function getExerciseDetailHistory(exerciseId: string): Promise<Exer
     })
     .sort((a, b) => new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime());
 
-  return {
-    exercise,
-    totalSets: sets.length,
-    maxWeight,
-    maxReps,
-    highest1RM,
-    progression,
-    sessions: historySessions,
-  };
+    return {
+      exercise,
+      totalSets: sets.length,
+      maxWeight,
+      maxReps,
+      highest1RM,
+      progression,
+      sessions: historySessions,
+    };
+  } catch (err) {
+    console.error("[Dexie] Error in getExerciseDetailHistory:", err);
+    if (fallbackExercise) {
+      return {
+        exercise: fallbackExercise,
+        totalSets: 0,
+        maxWeight: 0,
+        maxReps: 0,
+        highest1RM: 0,
+        progression: [],
+        sessions: [],
+      };
+    }
+    return null;
+  }
 }
 
 // ==========================================

@@ -14,33 +14,62 @@ import {
 import {
   getExerciseDetailHistory,
   ExerciseDetailHistory,
+  LocalExercise,
   SetType,
 } from "@/lib/db/dexie";
 import { ExerciseThumbnail } from "./ExerciseThumbnail";
 
 interface ExerciseDetailModalProps {
   exerciseId: string | null;
+  exercise?: LocalExercise | null;
   onClose: () => void;
 }
 
-export function ExerciseDetailModal({ exerciseId, onClose }: ExerciseDetailModalProps) {
+export function ExerciseDetailModal({ exerciseId, exercise, onClose }: ExerciseDetailModalProps) {
   const [data, setData] = useState<ExerciseDetailHistory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!exerciseId) {
+    if (!exerciseId && !exercise) {
       setData(null);
+      setIsLoading(false);
+      return;
+    }
+
+    if (exercise) {
+      setData({
+        exercise,
+        totalSets: 0,
+        maxWeight: 0,
+        maxReps: 0,
+        highest1RM: 0,
+        progression: [],
+        sessions: [],
+      });
+    }
+
+    const targetId = exerciseId || exercise?.id;
+    if (!targetId) {
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    void getExerciseDetailHistory(exerciseId).then((res) => {
-      setData(res);
-      setIsLoading(false);
-    });
-  }, [exerciseId]);
+    void getExerciseDetailHistory(targetId, exercise || undefined)
+      .then((res) => {
+        if (res) {
+          setData(res);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load exercise history:", err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [exerciseId, exercise]);
 
-  if (!exerciseId) return null;
+  if (!exerciseId && !exercise) return null;
 
   const setTypeBadges: Record<SetType, { label: string; color: string }> = {
     NORMAL: { label: "N", color: "bg-zinc-800 text-zinc-300" },
@@ -70,13 +99,17 @@ export function ExerciseDetailModal({ exerciseId, onClose }: ExerciseDetailModal
             </div>
             <div>
               <h2 className="font-bold text-sm text-zinc-100 truncate max-w-[220px]">
-                {data ? data.exercise.name : "Exercise Details"}
+                {data ? data.exercise.name : exercise ? exercise.name : "Exercise Details"}
               </h2>
-              {data && (
+              {(data || exercise) && (
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="text-[10px] text-zinc-400 font-semibold">{data.exercise.category}</span>
+                  <span className="text-[10px] text-zinc-400 font-semibold">
+                    {data?.exercise.category || exercise?.category}
+                  </span>
                   <span className="text-zinc-600 text-[10px]">•</span>
-                  <span className="text-[10px] text-emerald-400 font-semibold">{data.exercise.primaryMuscle}</span>
+                  <span className="text-[10px] text-emerald-400 font-semibold">
+                    {data?.exercise.primaryMuscle || exercise?.primaryMuscle}
+                  </span>
                 </div>
               )}
             </div>
@@ -92,9 +125,16 @@ export function ExerciseDetailModal({ exerciseId, onClose }: ExerciseDetailModal
         </div>
 
         {/* Modal Content */}
-        {isLoading || !data ? (
-          <div className="p-12 text-center text-zinc-500 text-xs">
-            Loading exercise stats and history...
+        {isLoading && !data ? (
+          <div className="p-12 text-center text-zinc-500 text-xs flex flex-col items-center justify-center gap-3">
+            <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+            <span>Loading exercise stats and history...</span>
+          </div>
+        ) : !data ? (
+          <div className="p-12 text-center text-zinc-500 text-xs flex flex-col items-center justify-center gap-2">
+            <Dumbbell className="w-8 h-8 text-zinc-600 mb-1" />
+            <p className="font-semibold text-zinc-400">Exercise details not found</p>
+            <p className="text-[11px] text-zinc-600">The requested movement is not in the active database.</p>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-4 space-y-4">

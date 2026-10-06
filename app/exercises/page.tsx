@@ -59,10 +59,20 @@ export default function ExercisesPage() {
     try {
       setIsLoading(true);
       await initializeLocalDb();
-      const [exList, sets] = await Promise.all([
+      let [exList, sets] = await Promise.all([
         db.exercises.toArray(),
         db.setLogs.filter((s) => s.isCompleted).toArray(),
       ]);
+
+      if (exList.length === 0) {
+        try {
+          const res = await fetch("/data/exercises.json");
+          if (res.ok) {
+            exList = await res.json();
+            await db.exercises.bulkPut(exList);
+          }
+        } catch {}
+      }
 
       setExercises(exList);
 
@@ -116,6 +126,11 @@ export default function ExercisesPage() {
   }, [exercises, searchQuery, selectedMuscle, selectedCategory]);
 
   const hasActiveFilters = searchQuery !== "" || selectedMuscle !== "All" || selectedCategory !== "ALL";
+
+  const selectedExercise = useMemo(
+    () => exercises.find((e) => e.id === inspectingExerciseId) || null,
+    [exercises, inspectingExerciseId]
+  );
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-28 max-w-md mx-auto overflow-x-hidden selection:bg-emerald-500 selection:text-zinc-950 w-full">
@@ -344,6 +359,7 @@ export default function ExercisesPage() {
       {/* Exercise Detail History Drawer */}
       <ExerciseDetailModal
         exerciseId={inspectingExerciseId}
+        exercise={selectedExercise}
         onClose={() => setInspectingExerciseId(null)}
       />
 
