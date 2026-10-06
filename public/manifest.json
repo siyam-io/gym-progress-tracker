@@ -1,0 +1,17 @@
+{
+  "name": "Pulse Gym Tracker",
+  "short_name": "PulseGym",
+  "description": "Offline-First Gym Floor Workout Logger",
+  "start_url": "/workout/active",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

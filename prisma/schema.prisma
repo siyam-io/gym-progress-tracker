@@ -1,0 +1,190 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum ExerciseCategory {
+  BARBELL
+  DUMBBELL
+  MACHINE
+  CABLE
+  BODYWEIGHT
+}
+
+enum SetType {
+  WARMUP
+  NORMAL
+  DROPSET
+  FAILURE
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+// NextAuth / Auth.js models
+model User {
+  id              String           @id @default(uuid())
+  name            String?
+  email           String?          @unique
+  emailVerified   DateTime?
+  image           String?
+  accounts        Account[]
+  sessions        Session[]
+  routines        Routine[]
+  workoutSessions WorkoutSession[]
+  bodyWeights     BodyWeightLog[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Exercise {
+  id               String           @id @default(uuid())
+  name             String
+  category         ExerciseCategory @default(BARBELL)
+  primaryMuscle    String
+  secondaryMuscles String[]         @default([])
+  isCustom         Boolean          @default(false)
+  userId           String?
+  imageUrl         String?
+  animationUrl     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  routineItems     RoutineItem[]
+  setLogs          SetLog[]
+
+  @@index([userId])
+  @@index([name])
+}
+
+model Routine {
+  id        String        @id @default(uuid())
+  name      String
+  userId    String?
+  user      User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  items     RoutineItem[]
+  sessions  WorkoutSession[]
+
+  @@index([userId])
+}
+
+model RoutineItem {
+  id          String   @id @default(uuid())
+  routineId   String
+  exerciseId  String
+  orderIndex  Int
+  targetSets  Int      @default(3)
+  restSeconds Int      @default(90)
+
+  routine     Routine  @relation(fields: [routineId], references: [id], onDelete: Cascade)
+  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([routineId])
+  @@index([exerciseId])
+}
+
+model WorkoutSession {
+  id          String        @id @default(uuid())
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routineId   String?
+  title       String
+  startTime   DateTime      @default(now())
+  endTime     DateTime?
+  durationSec Int           @default(0)
+  totalVolume Float         @default(0)
+  status      SessionStatus @default(IN_PROGRESS)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  routine     Routine?      @relation(fields: [routineId], references: [id], onDelete: SetNull)
+  sets        SetLog[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([startTime])
+}
+
+model SetLog {
+  id          String         @id @default(uuid())
+  sessionId   String
+  exerciseId  String
+  setNumber   Int
+  weight      Float
+  reps        Int
+  rpe         Float?
+  setType     SetType        @default(NORMAL)
+  isCompleted Boolean        @default(false)
+  isPR        Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  session     WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise    Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([exerciseId])
+}
+
+model BodyWeightLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weight    Float
+  unit      String   @default("kg")
+  date      String   // YYYY-MM-DD
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([date])
+}

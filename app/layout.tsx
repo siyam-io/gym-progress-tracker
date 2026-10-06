@@ -1,0 +1,57 @@
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "PULSE | Gym Floor Workout Tracker",
+  description: "Offline-first dark-mode gym workout logger with ghost placeholders, drift-free rest timer, and Brzycki 1RM PR engine.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Pulse Gym",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
+import { BottomNav } from "@/components/navigation/BottomNav";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { AuthProvider } from "@/components/providers/AuthProvider";
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
+        <AuthProvider>
+          <ServiceWorkerRegister />
+          {children}
+          <BottomNav />
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
