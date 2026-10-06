@@ -12,10 +12,24 @@ interface AnatomicalFormModalProps {
 }
 
 export function AnatomicalFormModal({ exercise, isOpen, onClose }: AnatomicalFormModalProps) {
+  React.useEffect(() => {
+    if (!isOpen || !exercise) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, exercise, onClose]);
+
   if (!isOpen || !exercise) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+    >
       <div className="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-3xl p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
         {/* Drawer header */}
         <div className="flex items-center justify-between pb-3 border-b border-zinc-800">

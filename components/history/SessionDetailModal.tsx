@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/dexie";
 import { calculate1RM } from "@/lib/utils/pr-calculator";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
+import { toast } from "@/stores/useToastStore";
 
 interface SessionDetailModalProps {
   sessionId: string | null;
@@ -40,13 +41,16 @@ export function SessionDetailModal({
   const [data, setData] = useState<SessionDetailData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirmDelete, setShowConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!sessionId) {
       setData(null);
+      setShowConfirmDelete(false);
       return;
     }
 
+    setShowConfirmDelete(false);
     setIsLoading(true);
     void getSessionDetail(sessionId).then((res) => {
       setData(res);
@@ -56,20 +60,18 @@ export function SessionDetailModal({
 
   if (!sessionId) return null;
 
-  const handleDelete = async () => {
+  const confirmDelete = async () => {
     if (!data) return;
-    const confirmed = window.confirm(
-      `Delete "${data.session.title}"? This action cannot be undone.`
-    );
-    if (!confirmed) return;
 
     try {
       setIsDeleting(true);
       await deleteWorkoutSession(data.session.id);
+      toast.success(`"${data.session.title}" deleted from history`);
       onDeleted();
       onClose();
     } catch (err) {
       console.error("Failed to delete session:", err);
+      toast.error("Failed to delete session");
     } finally {
       setIsDeleting(false);
     }
@@ -264,25 +266,55 @@ export function SessionDetailModal({
 
         {/* Modal Actions */}
         {data && (
-          <div className="p-4 border-t border-zinc-800 bg-zinc-950 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="py-3 px-4 min-h-[48px] rounded-xl bg-red-950/30 border border-red-500/30 hover:bg-red-950/60 text-red-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Delete</span>
-            </button>
+          <div className="p-4 border-t border-zinc-800 bg-zinc-950">
+            {showConfirmDelete ? (
+              <div className="p-3.5 rounded-2xl bg-red-950/30 border border-red-500/30 space-y-3 animate-in fade-in">
+                <div className="flex items-center gap-2 text-xs font-bold text-red-300">
+                  <Trash2 className="w-4 h-4 text-red-400 shrink-0" />
+                  <span>Permanently delete this workout from your logbook?</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmDelete(false)}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmDelete()}
+                    disabled={isDeleting}
+                    className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition-colors shadow-lg shadow-red-600/30 flex items-center justify-center gap-1.5"
+                  >
+                    {isDeleting ? "Deleting..." : "Yes, Delete Session"}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmDelete(true)}
+                  disabled={isDeleting}
+                  className="py-3 px-4 min-h-[48px] rounded-xl bg-red-950/30 border border-red-500/30 hover:bg-red-950/60 text-red-400 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+                  title="Delete workout session"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
+                </button>
 
-            <button
-              type="button"
-              onClick={handleRerun}
-              className="flex-1 py-3 px-4 min-h-[48px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-emerald-500/20"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Re-run as Template</span>
-            </button>
+                <button
+                  type="button"
+                  onClick={handleRerun}
+                  className="flex-1 py-3 px-4 min-h-[48px] rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 active:scale-95 transition-all shadow-md shadow-emerald-500/20"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Re-run as Template</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

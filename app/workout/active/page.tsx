@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Clock,
   Dumbbell,
@@ -13,6 +14,8 @@ import {
   Flame,
   Disc3,
   Share2,
+  ChevronLeft,
+  ChevronDown,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import { initializeLocalDb, DEFAULT_EXERCISES, processSyncQueue, LocalExercise } from "@/lib/db/dexie";
@@ -25,6 +28,7 @@ import { PlateCalculatorModal } from "@/components/workout/PlateCalculatorModal"
 import { toast } from "@/stores/useToastStore";
 
 export default function ActiveWorkoutPage() {
+  const router = useRouter();
   const {
     session,
     exerciseGroups,
@@ -177,6 +181,14 @@ export default function ActiveWorkoutPage() {
         {/* Top bar */}
         <header className="flex items-center justify-between py-2 border-b border-zinc-900">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-100 active:scale-95 transition-colors mr-1"
+              title="Back to Dashboard"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
             <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
               <Dumbbell className="w-5 h-5" />
             </div>
@@ -320,7 +332,16 @@ export default function ActiveWorkoutPage() {
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between pb-32 max-w-md mx-auto">
       {/* Sticky Gym Floor Header */}
       <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="w-9 h-9 min-w-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-emerald-400 active:scale-95 transition-colors"
+            title="Minimize to Dashboard"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+
           <button
             type="button"
             onClick={handleDiscard}

@@ -1037,6 +1037,11 @@ export async function deleteWorkoutSession(sessionId: string): Promise<void> {
     await enqueueSyncMutation("setLog", sid, "DELETE", { id: sid });
   }
   await enqueueSyncMutation("workoutSession", sessionId, "DELETE", { id: sessionId });
+
+  // Automatically flush sync queue if online
+  if (typeof window !== "undefined" && navigator.onLine) {
+    void processSyncQueue();
+  }
 }
 
 export interface SessionDetailData {

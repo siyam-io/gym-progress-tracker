@@ -53,8 +53,14 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
-  // Skip non-GET and internal API mutations
-  if (request.method !== "GET" || url.pathname.startsWith("/api/")) {
+  // Skip non-GET, internal API mutations, Next.js RSC flight requests, and HMR
+  if (
+    request.method !== "GET" ||
+    url.pathname.startsWith("/api/") ||
+    url.searchParams.has("_rsc") ||
+    request.headers.get("rsc") === "1" ||
+    url.pathname.startsWith("/_next/webpack-hmr")
+  ) {
     return;
   }
 

@@ -2,12 +2,13 @@
 
 import React, { useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Dumbbell, Calendar, TrendingUp, Library, ChevronRight, Activity } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { session, workoutElapsedSec, incrementWorkoutElapsed } = useWorkoutStore();
 
   // Keep live elapsed timer ticking in background if workout is active
@@ -42,12 +43,16 @@ export function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 max-w-md mx-auto pointer-events-none">
+    <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none">
       {/* Mini Persistent In-Progress Workout Floating Banner */}
       {session && (
-        <div className="px-3 pb-2 pointer-events-auto">
+        <div className="max-w-md mx-auto px-3 pb-2 pointer-events-auto">
           <Link
             href="/workout/active"
+            onClick={(e) => {
+              e.preventDefault();
+              router.push("/workout/active");
+            }}
             className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-950 via-zinc-900 to-zinc-900 border border-emerald-500/40 shadow-xl shadow-emerald-950/40 text-zinc-100 hover:border-emerald-400 active:scale-[0.98] transition-all group"
           >
             <div className="flex items-center gap-2.5">
@@ -77,9 +82,9 @@ export function BottomNav() {
         </div>
       )}
 
-      {/* Main 4-Tab Bottom Navigation Bar */}
-      <nav className="pointer-events-auto bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800/80 px-2 py-1.5 pb-safe shadow-2xl">
-        <div className="grid grid-cols-4 items-center justify-around h-14">
+      {/* Main 4-Tab Bottom Navigation Bar - Edge to edge bar with centered buttons */}
+      <nav className="pointer-events-auto bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800/80 px-2 py-1.5 pb-safe shadow-2xl w-full">
+        <div className="max-w-md mx-auto grid grid-cols-4 items-center justify-around h-14">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive =
@@ -91,6 +96,10 @@ export function BottomNav() {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={(e) => {
+                  e.preventDefault();
+                  router.push(item.href);
+                }}
                 className={`flex flex-col items-center justify-center py-1 px-2 rounded-xl min-h-[44px] transition-all ${
                   isActive
                     ? "text-emerald-400"
