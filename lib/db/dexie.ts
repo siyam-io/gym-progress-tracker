@@ -1441,3 +1441,18 @@ export async function getBodyWeightStats(): Promise<{
     history: logs,
   };
 }
+
+/**
+ * Completely clears local user workout sessions, set logs, body weights, and outbox sync queue.
+ * Retains catalog exercises so the athlete can start completely fresh.
+ */
+export async function clearLocalUserData(): Promise<void> {
+  if (typeof window === "undefined") return;
+  await Promise.all([
+    db.workoutSessions.clear(),
+    db.setLogs.clear(),
+    db.bodyWeightLogs.clear(),
+    db.outbox_sync_queue.clear(),
+  ]);
+}
+

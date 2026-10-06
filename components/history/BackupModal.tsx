@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { X, Download, Upload, ShieldCheck, AlertCircle, Check, FileSpreadsheet } from "lucide-react";
-import { exportAllDataAsJson, importDataFromJson } from "@/lib/db/dexie";
+import { X, Download, Upload, ShieldCheck, AlertCircle, Check, FileSpreadsheet, Trash2 } from "lucide-react";
+import { exportAllDataAsJson, importDataFromJson, clearLocalUserData } from "@/lib/db/dexie";
 import { exportWorkoutsToCsv, exportBodyWeightToCsv } from "@/lib/utils/export-csv";
 import { toast } from "@/stores/useToastStore";
 
@@ -62,6 +62,28 @@ export function BackupModal({ isOpen, onClose, onDataRestored }: BackupModalProp
       toast.error("Failed to export weight CSV.");
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const handleResetLocalData = async () => {
+    if (
+      typeof window !== "undefined" &&
+      window.confirm(
+        "Are you sure you want to reset all your local workouts and body weight data? This will give you a fresh start."
+      )
+    ) {
+      try {
+        setIsProcessing(true);
+        await clearLocalUserData();
+        toast.success("Local data wiped! Fresh start ready. 🧼");
+        onDataRestored();
+        setTimeout(() => onClose(), 800);
+      } catch (err) {
+        console.error("Failed to reset local data:", err);
+        toast.error("Failed to reset local data.");
+      } finally {
+        setIsProcessing(false);
+      }
     }
   };
 
@@ -176,6 +198,22 @@ export function BackupModal({ isOpen, onClose, onDataRestored }: BackupModalProp
               className="hidden"
             />
           </label>
+
+          {/* Danger Zone: Reset Local Data */}
+          <div className="pt-2 border-t border-zinc-800/80">
+            <button
+              type="button"
+              onClick={handleResetLocalData}
+              disabled={isProcessing}
+              className="w-full py-2.5 px-3.5 rounded-xl bg-red-950/20 border border-red-500/30 hover:bg-red-950/40 text-red-400 font-bold text-xs flex items-center justify-between active:scale-[0.98] transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-red-400" />
+                <span>Reset All Local Workout Data</span>
+              </div>
+              <span className="text-[9px] uppercase font-bold text-red-500/70">Fresh Start</span>
+            </button>
+          </div>
         </div>
 
         {/* Status Message */}
