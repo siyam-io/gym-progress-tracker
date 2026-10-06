@@ -624,8 +624,24 @@ export interface RoutineWithExercises extends LocalRoutine {
 export async function initializeLocalDb() {
   if (typeof window === "undefined") return;
 
-  // Always upsert all default exercises so they are immediately available
+  // Always upsert all default core routine exercises so they are immediately available
   await db.exercises.bulkPut(DEFAULT_EXERCISES);
+
+  // Load comprehensive 870+ exercises dataset from /data/exercises.json if not yet populated
+  try {
+    const currentCount = await db.exercises.count();
+    if (currentCount < 200) {
+      const res = await fetch("/data/exercises.json");
+      if (res.ok) {
+        const fullLibrary: LocalExercise[] = await res.json();
+        if (Array.isArray(fullLibrary) && fullLibrary.length > 0) {
+          await db.exercises.bulkPut(fullLibrary);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[Dexie] Could not load extended exercise dataset:", err);
+  }
 
   // Always ensure the 4 default routines exist
   for (const r of DEFAULT_ROUTINES) {
