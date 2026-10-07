@@ -684,62 +684,12 @@ export async function initializeLocalDb() {
     }
   }
 
-  // Populate sample past workout session if no sessions exist
-  const sessionCount = await db.workoutSessions.count();
-  if (sessionCount === 0) {
-    const samplePastSessionId = "past-session-sample-seed";
-    const pastDate = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-
-    await db.workoutSessions.put({
-      id: samplePastSessionId,
-      title: "Previous Day #01 Session",
-      startTime: pastDate,
-      endTime: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000 + 3600000).toISOString(),
-      durationSec: 3600,
-      totalVolume: 5400,
-      status: "COMPLETED",
-      createdAt: pastDate,
-      updatedAt: pastDate,
-    });
-
-    const samplePastSets: LocalSetLog[] = [
-      {
-        id: "past-set-bench-1",
-        sessionId: samplePastSessionId,
-        exerciseId: "ex-barbell-bench-press",
-        setNumber: 1,
-        weight: 60,
-        reps: 15,
-        rpe: 8,
-        setType: "NORMAL",
-        isCompleted: true,
-        isPR: false,
-        createdAt: pastDate,
-        updatedAt: pastDate,
-      },
-      {
-        id: "past-set-bench-2",
-        sessionId: samplePastSessionId,
-        exerciseId: "ex-barbell-bench-press",
-        setNumber: 2,
-        weight: 65,
-        reps: 15,
-        rpe: 8.5,
-        setType: "NORMAL",
-        isCompleted: true,
-        isPR: true,
-        createdAt: pastDate,
-        updatedAt: pastDate,
-      },
-    ];
-
-    await db.setLogs.bulkPut(samplePastSets);
+  // One-time complete purge of all user data logs (workout sessions, set logs, body weights, outbox queue)
+  const LOGS_PURGE_VERSION = "pulse_user_logs_purged_v1";
+  if (typeof window !== "undefined" && !localStorage.getItem(LOGS_PURGE_VERSION)) {
+    await clearLocalUserData();
+    localStorage.setItem(LOGS_PURGE_VERSION, "true");
   }
-
-  // Remove any legacy fake seed weight entries if present so empty state reflects actual user data
-  try {
-    await db.bodyWeightLogs.where("id").startsWith("bw-seed").delete();
-  } catch {}
 }
 
 /**
