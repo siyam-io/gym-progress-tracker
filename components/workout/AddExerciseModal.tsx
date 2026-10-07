@@ -12,6 +12,7 @@ interface AddExerciseModalProps {
 
 const CATEGORIES: Array<{ label: string; value: ExerciseCategory | "ALL" }> = [
   { label: "All", value: "ALL" },
+  { label: "Cardio", value: "CARDIO" },
   { label: "Barbell", value: "BARBELL" },
   { label: "Dumbbell", value: "DUMBBELL" },
   { label: "Cable", value: "CABLE" },
@@ -46,11 +47,15 @@ export function AddExerciseModal({ isOpen, onClose }: AddExerciseModalProps) {
   const currentExerciseIds = new Set(exerciseGroups.map((g) => g.exercise.id));
 
   const filteredExercises = exercises.filter((ex) => {
+    const q = searchQuery.toLowerCase();
     const matchesSearch =
-      ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ex.primaryMuscle.toLowerCase().includes(searchQuery.toLowerCase());
+      ex.name.toLowerCase().includes(q) ||
+      ex.primaryMuscle.toLowerCase().includes(q) ||
+      (ex.category && ex.category.toLowerCase().includes(q));
     const matchesCategory =
-      selectedCategory === "ALL" || ex.category === selectedCategory;
+      selectedCategory === "ALL" ||
+      ex.category === selectedCategory ||
+      (selectedCategory === "CARDIO" && (ex.category === "CARDIO" || ex.primaryMuscle.toLowerCase() === "cardio"));
     return matchesSearch && matchesCategory;
   });
 

@@ -210,7 +210,6 @@ export default function HistoryPage() {
         .filter((ex): ex is LocalExercise => !!ex);
 
       await startWorkout(item.title, exercises, item.routineId ?? undefined);
-      toast.success(`Started "${item.title}" session on gym floor!`);
       router.push("/workout/active");
     } catch (err) {
       console.error("Failed to rerun workout:", err);

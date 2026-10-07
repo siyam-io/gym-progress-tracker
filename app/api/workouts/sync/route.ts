@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 
 // Zod schemas for validation
-const ExerciseCategoryEnum = z.enum(["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT"]);
+const ExerciseCategoryEnum = z.enum(["BARBELL", "DUMBBELL", "MACHINE", "CABLE", "BODYWEIGHT", "CARDIO"]);
 const SetTypeEnum = z.enum(["WARMUP", "NORMAL", "DROPSET", "FAILURE"]);
 const SessionStatusEnum = z.enum(["IN_PROGRESS", "COMPLETED"]);
 

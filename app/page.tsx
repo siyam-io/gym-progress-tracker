@@ -1,17 +1,25 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Dumbbell,
   Play,
   Plus,
   Flame,
   Clock,
   ChevronRight,
   Layers,
-  CheckCircle2,
   Calendar,
+  Trash2,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  Activity,
+  Sparkles,
+  Info,
+  Mail,
+  Download,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import {
@@ -20,12 +28,17 @@ import {
   getWeeklyWorkoutStreak,
   RoutineWithExercises,
   StreakDay,
+  deleteRoutine,
+  resetToDefaultRoutines,
 } from "@/lib/db/dexie";
 import { CreateRoutineModal } from "@/components/routine/CreateRoutineModal";
 import { AuthButton } from "@/components/auth/AuthButton";
 import { DailyWeightCard } from "@/components/weight/DailyWeightCard";
 import { SyncStatusBadge } from "@/components/navigation/SyncStatusBadge";
 import { RoutineCardSkeleton } from "@/components/ui/Skeleton";
+import { PulseLogo } from "@/components/ui/Logo";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { toast } from "@/stores/useToastStore";
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -39,9 +52,13 @@ export default function HomeDashboard() {
   const [greeting, setGreeting] = useState("Welcome back");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
+  const [routineToDelete, setRoutineToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
+      setIsLoading(true);
       await initializeLocalDb();
       const [fetchedRoutines, streak] = await Promise.all([
         getRoutinesWithExercises(),
@@ -50,7 +67,7 @@ export default function HomeDashboard() {
       setRoutines(fetchedRoutines);
       setStreakData(streak);
     } catch (err) {
-      console.error("Failed to load dashboard data:", err);
+      console.error("Failed to load initial dashboard data:", err);
     } finally {
       setIsLoading(false);
     }
@@ -66,15 +83,32 @@ export default function HomeDashboard() {
     else setGreeting("Good evening");
   }, [loadData]);
 
-  const handleStartEmpty = async () => {
-    await startWorkout("Quick Workout", []);
-    router.push("/workout/active");
-  };
-
   const handleStartRoutine = async (routine: RoutineWithExercises) => {
     const exercises = routine.items.map((i) => i.exercise);
     await startWorkout(routine.name, exercises, routine.id);
     router.push("/workout/active");
+  };
+
+  const handleDeleteRoutine = (e: React.MouseEvent, routineId: string, routineName: string) => {
+    e.stopPropagation();
+    setRoutineToDelete({ id: routineId, name: routineName });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!routineToDelete) return;
+    await deleteRoutine(routineToDelete.id);
+    setRoutineToDelete(null);
+    await loadData();
+  };
+
+  const handleResetRoutines = () => {
+    setShowResetConfirm(true);
+  };
+
+  const handleConfirmReset = async () => {
+    setShowResetConfirm(false);
+    await resetToDefaultRoutines();
+    await loadData();
   };
 
   const formatLastCompleted = (dateStr: string | null) => {
@@ -92,27 +126,23 @@ export default function HomeDashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-28 max-w-md mx-auto selection:bg-emerald-500 selection:text-zinc-950">
-      {/* Top Header */}
-      <header className="px-5 pt-6 pb-4 flex items-center justify-between border-b border-zinc-900/80">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-emerald-400 p-[1.5px] shadow-lg shadow-emerald-500/20">
-            <div className="w-full h-full bg-zinc-950 rounded-[14px] flex items-center justify-center">
-              <Dumbbell className="w-5 h-5 text-emerald-400" />
-            </div>
-          </div>
-          <div>
+      {/* Top Header Navbar */}
+      <header className="px-4 sm:px-5 pt-5 pb-3.5 flex items-center justify-between border-b border-zinc-900/80 bg-zinc-950/90 backdrop-blur-md sticky top-0 z-30">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+          <PulseLogo size="md" />
+          <div className="min-w-0">
             <h1 className="text-base font-black tracking-tight text-zinc-100 leading-none">
               PULSE GYM
             </h1>
-            <span className="text-[11px] text-zinc-400 font-semibold mt-0.5 block">
+            <span className="text-[11px] text-zinc-400 font-medium mt-0.5 truncate block whitespace-nowrap">
               {greeting}, Athlete
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <SyncStatusBadge />
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-zinc-900 border border-zinc-800 text-[11px] font-mono text-emerald-400">
+          <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-emerald-400">
             <Flame className="w-3.5 h-3.5 text-amber-400" />
             <span>{streakData.completedCount}</span>
           </div>
@@ -121,7 +151,34 @@ export default function HomeDashboard() {
       </header>
 
       {/* Main Dashboard Content */}
-      <main className="p-5 space-y-5 flex-1">
+      <main className="p-4 sm:p-5 space-y-5 flex-1">
+        {/* Navigation Shortcut Pills to Services, About, and Contact */}
+        <div className="flex items-center justify-between gap-1.5 p-1 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 text-xs">
+          <Link
+            href="/services"
+            className="flex-1 py-1.5 px-2 rounded-xl text-center font-bold text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800/80 transition-colors flex items-center justify-center gap-1 text-[11px]"
+          >
+            <Sparkles className="w-3 h-3 text-emerald-400" />
+            <span>Services</span>
+          </Link>
+          <span className="text-zinc-800">•</span>
+          <Link
+            href="/about"
+            className="flex-1 py-1.5 px-2 rounded-xl text-center font-bold text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800/80 transition-colors flex items-center justify-center gap-1 text-[11px]"
+          >
+            <Info className="w-3 h-3 text-emerald-400" />
+            <span>About</span>
+          </Link>
+          <span className="text-zinc-800">•</span>
+          <Link
+            href="/contact"
+            className="flex-1 py-1.5 px-2 rounded-xl text-center font-bold text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800/80 transition-colors flex items-center justify-center gap-1 text-[11px]"
+          >
+            <Mail className="w-3 h-3 text-emerald-400" />
+            <span>Contact</span>
+          </Link>
+        </div>
+
         {/* Weekly Streak Widget */}
         <section className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
@@ -148,33 +205,43 @@ export default function HomeDashboard() {
                       ? "bg-zinc-900 border-2 border-emerald-500/60 text-zinc-300"
                       : "bg-zinc-900/80 border border-zinc-800/80 text-zinc-600"
                   }`}
-                  title={`${day.fullDay} (${day.dateStr})`}
                 >
-                  {day.isCompleted ? (
-                    <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
-                  ) : (
-                    <span className="text-xs font-mono font-bold">
-                      {new Date(day.dateStr).getDate()}
-                    </span>
-                  )}
+                  <span
+                    className={`text-xs font-bold ${
+                      day.isCompleted
+                        ? "text-zinc-950"
+                        : day.isToday
+                        ? "text-emerald-400"
+                        : "text-zinc-500"
+                    }`}
+                  >
+                    {day.dayName[0]}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Daily Body Weight Tracker Widget */}
+        {/* Daily Weight Logger */}
         <DailyWeightCard />
 
-        {/* Quick Start Action Button */}
-        <section>
+        {/* Quick Launch Card */}
+        <section className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-zinc-900 to-zinc-900 border border-emerald-500/30 flex items-center justify-between shadow-lg shadow-emerald-950/20">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 block mb-0.5">
+              Instant Session
+            </span>
+            <h2 className="text-sm font-black text-zinc-100">Empty Gym Floor</h2>
+            <p className="text-xs text-zinc-400 mt-0.5">Log sets freely on the fly</p>
+          </div>
           <button
             type="button"
-            onClick={handleStartEmpty}
-            className="w-full py-4 min-h-[56px] rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-emerald-500/20 active:scale-[0.98] transition-all group"
+            onClick={() => void router.push("/workout/active")}
+            className="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-emerald-500/30 shrink-0"
+            title="Start Empty Workout"
           >
-            <Play className="w-5 h-5 fill-zinc-950 transition-transform group-hover:scale-110" />
-            <span>Start Empty Workout</span>
+            <Play className="w-5 h-5 fill-current ml-0.5" />
           </button>
         </section>
 
@@ -187,14 +254,25 @@ export default function HomeDashboard() {
                 Gym Workout Routines
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCreateModal(true)}
-              className="text-xs font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 min-h-[36px] px-2"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>New Routine</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <Link
+                href="/routines"
+                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                title="Manage and Import Workout Routines"
+              >
+                <Download className="w-3 h-3" />
+                <span>Routines Hub</span>
+              </Link>
+              <button
+                type="button"
+                onClick={handleResetRoutines}
+                className="text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-zinc-900 transition-colors"
+                title="Reset routines to Day 01, Day 02, Day 03"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+            </div>
           </div>
 
           {isLoading ? (
@@ -207,72 +285,154 @@ export default function HomeDashboard() {
               <p className="text-xs text-zinc-400 mb-2">No workout routines found.</p>
               <button
                 type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-xs font-bold"
+                onClick={handleResetRoutines}
+                className="px-3.5 py-2 rounded-xl bg-emerald-500 text-zinc-950 text-xs font-bold"
               >
-                Create your first routine
+                Restore Day 01, Day 02, Day 03
               </button>
             </div>
           ) : (
             <div className="space-y-3">
-              {routines.map((routine) => (
-                <div
-                  key={routine.id}
-                  className="bg-zinc-900/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-4 transition-all flex flex-col justify-between gap-3 shadow-sm group"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h3 className="font-extrabold text-sm text-zinc-100 group-hover:text-emerald-300 transition-colors">
-                        {routine.name}
-                      </h3>
-                      {/* Targeted Muscle Tags */}
-                      <div className="flex flex-wrap gap-1 mt-1.5">
-                        {routine.targetMuscles.map((muscle) => (
-                          <span
-                            key={muscle}
-                            className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-zinc-950 border border-zinc-800 text-zinc-400"
+              {routines.map((routine) => {
+                const isExpanded = expandedRoutineId === routine.id;
+                return (
+                  <div
+                    key={routine.id}
+                    className="bg-zinc-900/80 border border-zinc-800/80 hover:border-zinc-700/80 rounded-2xl p-4 transition-all flex flex-col justify-between gap-3 shadow-sm group"
+                  >
+                    <div
+                      className="flex items-start justify-between gap-2 cursor-pointer"
+                      onClick={() => setExpandedRoutineId(isExpanded ? null : routine.id)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-sm text-zinc-100 group-hover:text-emerald-300 transition-colors">
+                            {routine.name}
+                          </h3>
+                          <button
+                            type="button"
+                            className="text-zinc-500 hover:text-zinc-300 p-0.5"
+                            title={isExpanded ? "Collapse exercises" : "View exercises"}
                           >
-                            {muscle}
-                          </span>
-                        ))}
+                            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
+                        {/* Targeted Muscle Tags */}
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {routine.targetMuscles.map((muscle) => (
+                            <span
+                              key={muscle}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-md border ${
+                                muscle.toLowerCase() === "cardio"
+                                  ? "bg-emerald-950/40 border-emerald-500/30 text-emerald-300"
+                                  : "bg-zinc-950 border-zinc-800 text-zinc-400"
+                              }`}
+                            >
+                              {muscle}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="text-right flex flex-col items-end shrink-0">
+                        <span className="text-[10px] text-zinc-500 uppercase font-semibold">
+                          Last Run
+                        </span>
+                        <span className="text-xs font-mono font-bold text-zinc-400">
+                          {formatLastCompleted(routine.lastCompletedAt)}
+                        </span>
                       </div>
                     </div>
 
-                    <div className="text-right flex flex-col items-end">
-                      <span className="text-[10px] text-zinc-500 uppercase font-semibold">
-                        Last Run
-                      </span>
-                      <span className="text-xs font-mono font-bold text-zinc-400">
-                        {formatLastCompleted(routine.lastCompletedAt)}
-                      </span>
+                    {/* Expandable exercises preview */}
+                    {isExpanded && (
+                      <div className="pt-2 pb-1 border-t border-zinc-800/60 animate-in fade-in duration-150">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 block mb-1.5">
+                          Routine Exercises ({routine.items.length})
+                        </span>
+                        <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                          {routine.items.map((item, idx) => (
+                            <div
+                              key={item.id}
+                              className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-zinc-950/60 border border-zinc-800/50"
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <span className="text-[10px] font-mono text-zinc-500 w-4">
+                                  {idx + 1}.
+                                </span>
+                                <span className="text-zinc-200 font-medium truncate">
+                                  {item.exercise?.name || "Exercise"}
+                                </span>
+                              </div>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-900 text-zinc-400 shrink-0 font-medium">
+                                {item.exercise?.primaryMuscle || item.exercise?.category}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Routine Stats & Start Button */}
+                    <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
+                      <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium">
+                        <span>{routine.items.length} exercises</span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-zinc-400">
+                          <Clock className="w-3.5 h-3.5 text-zinc-500" />
+                          ~{routine.estimatedDurationMin} min
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {/* Delete button if user wants to delete */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteRoutine(e, routine.id, routine.name)}
+                          className="w-9 h-9 rounded-xl bg-zinc-900 hover:bg-red-500/10 text-zinc-500 hover:text-red-400 border border-zinc-800 flex items-center justify-center transition-colors"
+                          title="Delete routine"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleStartRoutine(routine)}
+                          className="px-4 py-2 min-h-[38px] rounded-xl bg-zinc-800 hover:bg-emerald-500 text-zinc-200 hover:text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
+                        >
+                          <span>Start</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Routine Stats & Start Button */}
-                  <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60">
-                    <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium">
-                      <span>{routine.items.length} exercises</span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1 text-zinc-400">
-                        <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                        ~{routine.estimatedDurationMin} min
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => void handleStartRoutine(routine)}
-                      className="px-4 py-2 min-h-[44px] rounded-xl bg-zinc-800 hover:bg-emerald-500 text-zinc-200 hover:text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-sm"
-                    >
-                      <span>Start</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
+
+        {/* Footer Navigation & Brand Section */}
+        <footer className="pt-8 pb-4 border-t border-zinc-900/80 space-y-3.5 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <PulseLogo size="sm" />
+            <span className="text-xs font-black tracking-wider uppercase text-zinc-200">
+              PULSE <span className="text-emerald-400">GYM</span>
+            </span>
+          </div>
+          <p className="text-[11px] text-zinc-500 max-w-xs mx-auto leading-relaxed">
+            Progressive floor workout logger engineered with sports science & zero-latency offline storage.
+          </p>
+          <div className="flex items-center justify-center gap-3 text-xs font-semibold text-zinc-400">
+            <Link href="/services" className="hover:text-emerald-400 transition-colors">Services</Link>
+            <span className="text-zinc-800">•</span>
+            <Link href="/about" className="hover:text-emerald-400 transition-colors">About Us</Link>
+            <span className="text-zinc-800">•</span>
+            <Link href="/contact" className="hover:text-emerald-400 transition-colors">Support & FAQ</Link>
+          </div>
+          <div className="text-[10px] text-zinc-600 font-mono">
+            PULSE Floor Engine • 100% Offline IndexedDB
+          </div>
+        </footer>
       </main>
 
       {/* Custom Routine Drawer / Modal */}
@@ -280,6 +440,30 @@ export default function HomeDashboard() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onRoutineCreated={() => void loadData()}
+      />
+
+      {/* Modern Routine Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!routineToDelete}
+        title={`Delete "${routineToDelete?.name || "Routine"}"?`}
+        description="Are you sure you want to delete this routine? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setRoutineToDelete(null)}
+      />
+
+      {/* Modern Reset Routines Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        title="Reset All Routines?"
+        description="This will restore the standard Day 01, Day 02, and Day 03 routines to their default states."
+        confirmLabel="Reset"
+        cancelLabel="Cancel"
+        variant="warning"
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetConfirm(false)}
       />
     </div>
   );

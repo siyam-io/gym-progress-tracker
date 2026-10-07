@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: "PULSE | Gym Floor Workout Tracker",
   description: "Offline-first dark-mode gym workout logger with ghost placeholders, drift-free rest timer, and Brzycki 1RM PR engine.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

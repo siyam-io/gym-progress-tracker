@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { LogOut, X, ShieldCheck } from "lucide-react";
+import { LogOut, X, ShieldCheck, ChevronDown, User } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
+import { PulseLogo } from "@/components/ui/Logo";
 
 export function AuthButton() {
   const { data: session, status } = useSession();
   const { setCurrentUserId } = useWorkoutStore();
-  const [showProfileDrawer, setShowProfileDrawer] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -19,10 +21,30 @@ export function AuthButton() {
     }
   }, [session, setCurrentUserId]);
 
+  // Close popover on outside click or Esc
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
+
   if (status === "loading") {
-    return (
-      <div className="w-8 h-8 rounded-full bg-zinc-800 animate-pulse" />
-    );
+    return <div className="w-8 h-8 rounded-full bg-zinc-800 animate-pulse" />;
   }
 
   if (!session?.user) {
@@ -30,7 +52,7 @@ export function AuthButton() {
       <button
         type="button"
         onClick={() => signIn("google")}
-        className="flex items-center gap-2 px-3 py-1.5 min-h-[38px] rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 text-zinc-200 font-bold text-xs active:scale-95 transition-all shadow-sm group"
+        className="flex items-center gap-1.5 px-3 py-1.5 min-h-[36px] rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 hover:bg-zinc-850 text-zinc-200 font-bold text-xs active:scale-95 transition-all shadow-sm group shrink-0"
         title="Sign in with Google account"
       >
         {/* Google 'G' Icon */}
@@ -61,27 +83,31 @@ export function AuthButton() {
   const user = session.user;
   const initials = user.name
     ? user.name
-      .split(" ")
-      .map((n) => n[0])
-      .slice(0, 2)
-      .join("")
-      .toUpperCase()
+        .split(" ")
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
     : "U";
 
   return (
-    <>
+    <div ref={containerRef} className="relative inline-block text-left shrink-0">
       {/* Logged in avatar trigger button */}
       <button
         type="button"
-        onClick={() => setShowProfileDrawer(true)}
-        className="flex items-center gap-2 p-1 pl-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-zinc-700 active:scale-95 transition-all"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`flex items-center gap-1.5 p-1 pl-1.5 sm:pl-2 rounded-xl border transition-all shrink-0 active:scale-95 ${
+          isOpen
+            ? "bg-zinc-800 border-zinc-700 shadow-md ring-2 ring-emerald-500/20"
+            : "bg-zinc-900 border-zinc-800 hover:border-zinc-700"
+        }`}
         title="View Profile & Settings"
       >
-        <span className="text-xs font-bold text-zinc-300 max-w-[80px] truncate hidden sm:inline">
+        <span className="text-xs font-bold text-zinc-300 max-w-[70px] truncate hidden md:inline">
           {user.name?.split(" ")[0]}
         </span>
         {user.image ? (
-          <div className="w-7 h-7 rounded-lg overflow-hidden border border-zinc-700 relative">
+          <div className="w-7 h-7 rounded-lg overflow-hidden border border-zinc-700 relative shrink-0">
             <Image
               src={user.image}
               alt={user.name || "User"}
@@ -92,83 +118,89 @@ export function AuthButton() {
             />
           </div>
         ) : (
-          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs flex items-center justify-center shrink-0">
             {initials}
           </div>
         )}
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 hidden sm:block ${
+            isOpen ? "rotate-180 text-emerald-400" : ""
+          }`}
+        />
       </button>
 
-      {/* User Profile Slide-over / Modal */}
-      {showProfileDrawer && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-t-3xl sm:rounded-2xl p-5 space-y-4 shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-zinc-800">
-              <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+      {/* Profile Anchored Dropdown Popover */}
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-80 sm:w-84 max-w-[calc(100vw-24px)] bg-zinc-900 border border-zinc-800 rounded-2xl p-4 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-3.5">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-2.5 border-b border-zinc-800">
+            <div className="flex items-center gap-2">
+              <PulseLogo size="sm" />
+              <span className="text-xs font-black uppercase tracking-wider text-zinc-300">
                 Athlete Profile
               </span>
-              <button
-                type="button"
-                onClick={() => setShowProfileDrawer(false)}
-                className="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-400 hover:text-zinc-100 flex items-center justify-center"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="w-6 h-6 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 flex items-center justify-center transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
 
-            {/* User Info Card */}
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-zinc-950 border border-zinc-800">
-              {user.image ? (
-                <div className="w-12 h-12 rounded-xl overflow-hidden border border-zinc-700 shrink-0">
-                  <Image
-                    src={user.image}
-                    alt={user.name || "User"}
-                    width={48}
-                    height={48}
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-              ) : (
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-black text-sm flex items-center justify-center shrink-0">
-                  {initials}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <h3 className="font-extrabold text-sm text-zinc-100 truncate">
-                  {user.name || "Logged In Athlete"}
-                </h3>
-                <span className="text-xs text-zinc-400 truncate block font-mono">
-                  {user.email}
-                </span>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold mt-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                  Cloud Sync Linked
-                </span>
+          {/* User Info Card */}
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-zinc-950 border border-zinc-800">
+            {user.image ? (
+              <div className="w-11 h-11 rounded-xl overflow-hidden border border-zinc-700 shrink-0">
+                <Image
+                  src={user.image}
+                  alt={user.name || "User"}
+                  width={44}
+                  height={44}
+                  className="object-cover"
+                  unoptimized
+                />
               </div>
+            ) : (
+              <div className="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-black text-sm flex items-center justify-center shrink-0">
+                {initials}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <h3 className="font-extrabold text-sm text-zinc-100 truncate">
+                {user.name || "Logged In Athlete"}
+              </h3>
+              <span className="text-xs text-zinc-400 truncate block font-mono">
+                {user.email}
+              </span>
+              <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-semibold mt-0.5">
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                Cloud Sync Linked
+              </span>
             </div>
+          </div>
 
-            <p className="text-[11px] text-zinc-400 leading-relaxed">
-              Your workouts, routines, and PR records are synced to your account and backed up locally in Dexie IndexedDB.
-            </p>
+          <p className="text-[11px] text-zinc-400 leading-relaxed px-0.5">
+            Workouts, custom routines, and PR records sync to your account and back up in local Dexie IndexedDB.
+          </p>
 
-            {/* Sign Out CTA */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowProfileDrawer(false);
-                  signOut();
-                }}
-                className="w-full py-3 min-h-[44px] rounded-xl bg-zinc-950 border border-red-500/30 hover:bg-red-950/40 text-red-400 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
-              </button>
-            </div>
+          {/* Sign Out CTA */}
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                signOut();
+              }}
+              className="w-full py-2.5 min-h-[42px] rounded-xl bg-zinc-950 border border-red-500/30 hover:bg-red-950/40 text-red-400 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

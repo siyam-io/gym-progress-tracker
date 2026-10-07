@@ -13,6 +13,7 @@ enum ExerciseCategory {
   MACHINE
   CABLE
   BODYWEIGHT
+  CARDIO
 }
 
 enum SetType {

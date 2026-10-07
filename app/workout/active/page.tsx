@@ -20,12 +20,30 @@ import {
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import { initializeLocalDb, DEFAULT_EXERCISES, processSyncQueue, LocalExercise } from "@/lib/db/dexie";
 import { LiveSetRow } from "@/components/workout/LiveSetRow";
+import { CardioSetRow } from "@/components/workout/CardioSetRow";
 import { RestTimerBar } from "@/components/workout/RestTimerBar";
 import { AddExerciseModal } from "@/components/workout/AddExerciseModal";
 import { ExerciseThumbnail } from "@/components/exercises/ExerciseThumbnail";
 import { AnatomicalFormModal } from "@/components/exercises/AnatomicalFormModal";
 import { PlateCalculatorModal } from "@/components/workout/PlateCalculatorModal";
+import { PulseLogo } from "@/components/ui/Logo";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { toast } from "@/stores/useToastStore";
+
+const isCardioExercise = (ex: LocalExercise) => {
+  if (ex.category === "CARDIO") return true;
+  if (ex.primaryMuscle?.toLowerCase() === "cardio") return true;
+  const name = ex.name.toLowerCase();
+  return (
+    name.includes("warm up") ||
+    name.includes("treadmill") ||
+    name.includes("cross train") ||
+    name.includes("cycle") ||
+    name.includes("jump rope") ||
+    name.includes("rowing") ||
+    name.includes("stair")
+  );
+};
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
@@ -90,19 +108,12 @@ export default function ActiveWorkoutPage() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleStartDefaultWorkout = () => {
-    const day1ExIds = [
-      "ex-push-up",
-      "ex-incline-press",
-      "ex-barbell-bench-press",
-      "ex-pec-deck-fly",
-      "ex-cable-tricep-pushdown",
-      "ex-crunches",
-      "ex-plank",
-    ];
-    const initialEx = DEFAULT_EXERCISES.filter((e) => day1ExIds.includes(e.id));
-    void startWorkout("Day #01 - Push & Core", initialEx.length > 0 ? initialEx : DEFAULT_EXERCISES.slice(0, 5));
-  };
+  // Auto-redirect to home if no active session and not showing completed summary
+  useEffect(() => {
+    if (!isLoading && !session && !completedSummary) {
+      router.replace("/");
+    }
+  }, [isLoading, session, completedSummary, router]);
 
   const handleFinish = async () => {
     if (!session) return;
@@ -140,7 +151,6 @@ export default function ActiveWorkoutPage() {
       prCount,
     });
     setShowSummaryModal(true);
-    toast.success("Workout Complete! Fantastic session! 🎉");
 
     // Trigger sync
     void processSyncQueue();
@@ -159,10 +169,12 @@ export default function ActiveWorkoutPage() {
     }
   };
 
-  const handleDiscard = async () => {
-    if (window.confirm("Are you sure you want to discard this workout? All progress will be lost.")) {
-      await discardWorkout();
-    }
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+
+  const handleConfirmDiscard = async () => {
+    setShowDiscardModal(false);
+    await discardWorkout();
+    router.replace("/");
   };
 
   if (isLoading) {
@@ -174,156 +186,72 @@ export default function ActiveWorkoutPage() {
     );
   }
 
-  // If no active session, show Start Workout gym hub
+  // If no active session, show completed summary modal if finished, or redirect state
   if (!session) {
-    return (
-      <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between p-4 max-w-md mx-auto">
-        {/* Top bar */}
-        <header className="flex items-center justify-between py-2 border-b border-zinc-900">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              className="w-9 h-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-zinc-100 active:scale-95 transition-colors mr-1"
-              title="Back to Dashboard"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-              <Dumbbell className="w-5 h-5" />
+    if (showSummaryModal && completedSummary) {
+      return (
+        <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-center items-center p-4">
+          <div className="w-full max-w-sm bg-zinc-900 border border-emerald-500/30 rounded-3xl p-6 text-center shadow-2xl flex flex-col items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <Trophy className="w-8 h-8 fill-emerald-400/20" />
             </div>
             <div>
-              <h1 className="text-base font-black tracking-tight text-zinc-100">PULSE GYM</h1>
-              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-                Offline-First Tracker
-              </span>
+              <h3 className="text-xl font-black text-zinc-100">Workout Complete!</h3>
+              <p className="text-xs text-zinc-400 mt-1">{completedSummary.title}</p>
             </div>
-          </div>
 
-          <div
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
-              isOnline
-                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                : "bg-amber-500/10 border-amber-500/20 text-amber-400"
-            }`}
-          >
-            {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
-            <span>{isOnline ? "Online" : "Offline DB"}</span>
-          </div>
-        </header>
-
-        {/* Hero Card */}
-        <div className="my-auto py-8 flex flex-col items-center text-center gap-6">
-          <div className="relative">
-            <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-emerald-600/20 to-emerald-400/10 border border-emerald-500/30 flex items-center justify-center shadow-xl shadow-emerald-500/10">
-              <Flame className="w-12 h-12 text-emerald-400" />
-            </div>
-            <div className="absolute -bottom-2 -right-2 px-2 py-0.5 rounded-full bg-emerald-500 text-zinc-950 text-[10px] font-black uppercase tracking-wider">
-              Zero Latency
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-2xl font-black text-zinc-100 tracking-tight">
-              Ready for the Floor?
-            </h2>
-            <p className="text-sm text-zinc-400 max-w-xs mx-auto leading-relaxed">
-              Real-time Brzycki PR engine, ghost placeholders, one-thumb quick steppers, and drift-free rest timer.
-            </p>
-          </div>
-
-          <div className="w-full space-y-3 pt-2">
-            <button
-              type="button"
-              onClick={handleStartDefaultWorkout}
-              className="w-full py-4 min-h-[56px] rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-base flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition-all"
-            >
-              <Dumbbell className="w-5 h-5 fill-zinc-950" />
-              <span>Start Day #01 Session</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => void startWorkout("Custom Workout", [])}
-              className="w-full py-3.5 min-h-[48px] rounded-2xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-sm border border-zinc-800 flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-            >
-              <Plus className="w-4 h-4 text-emerald-400" />
-              <span>Start Blank Workout</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Feature Pills */}
-        <footer className="grid grid-cols-3 gap-2 py-4 border-t border-zinc-900 text-center">
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
-            <span className="text-[10px] uppercase font-bold text-zinc-500 block">Rest Timer</span>
-            <span className="text-xs font-bold text-emerald-400">Drift-Free</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
-            <span className="text-[10px] uppercase font-bold text-zinc-500 block">PR Formula</span>
-            <span className="text-xs font-bold text-amber-400">Brzycki 1RM</span>
-          </div>
-          <div className="p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80">
-            <span className="text-[10px] uppercase font-bold text-zinc-500 block">Offline Store</span>
-            <span className="text-xs font-bold text-blue-400">Dexie Sync</span>
-          </div>
-        </footer>
-
-        {/* Workout Complete Summary Modal */}
-        {showSummaryModal && completedSummary && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm animate-in fade-in">
-            <div className="w-full max-w-sm bg-zinc-900 border border-emerald-500/30 rounded-3xl p-6 text-center shadow-2xl flex flex-col items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <Trophy className="w-8 h-8 fill-emerald-400/20" />
+            <div className="grid grid-cols-3 gap-2 w-full py-2">
+              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 block">Time</span>
+                <span className="text-sm font-mono font-bold text-zinc-100">
+                  {formatDuration(completedSummary.durationSec)}
+                </span>
               </div>
-              <div>
-                <h3 className="text-xl font-black text-zinc-100">Workout Complete!</h3>
-                <p className="text-xs text-zinc-400 mt-1">{completedSummary.title}</p>
+              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 block">Volume</span>
+                <span className="text-sm font-mono font-bold text-emerald-400">
+                  {completedSummary.totalVolume} kg
+                </span>
               </div>
-
-              <div className="grid grid-cols-3 gap-2 w-full py-2">
-                <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
-                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Time</span>
-                  <span className="text-sm font-mono font-bold text-zinc-100">
-                    {formatDuration(completedSummary.durationSec)}
-                  </span>
-                </div>
-                <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
-                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">Volume</span>
-                  <span className="text-sm font-mono font-bold text-emerald-400">
-                    {completedSummary.totalVolume} kg
-                  </span>
-                </div>
-                <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
-                  <span className="text-[10px] uppercase font-bold text-zinc-500 block">PRs</span>
-                  <span className="text-sm font-mono font-bold text-amber-400">
-                    {completedSummary.prCount}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-2 w-full">
-                <button
-                  type="button"
-                  onClick={handleShareSummary}
-                  className="flex-1 py-3.5 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 text-zinc-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
-                >
-                  <Share2 className="w-4 h-4 text-emerald-400" />
-                  <span>Share</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowSummaryModal(false)}
-                  className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs uppercase tracking-wider active:scale-95 transition-all"
-                >
-                  Done
-                </button>
+              <div className="bg-zinc-950 p-2.5 rounded-xl border border-zinc-800">
+                <span className="text-[10px] uppercase font-bold text-zinc-500 block">PRs</span>
+                <span className="text-sm font-mono font-bold text-amber-400">
+                  {completedSummary.prCount}
+                </span>
               </div>
             </div>
+
+            <div className="flex gap-2 w-full">
+              <button
+                type="button"
+                onClick={handleShareSummary}
+                className="flex-1 py-3.5 rounded-xl bg-zinc-950 border border-zinc-800 hover:border-emerald-500/50 text-zinc-200 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-95 transition-all"
+              >
+                <Share2 className="w-4 h-4 text-emerald-400" />
+                <span>Share</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSummaryModal(false);
+                  router.replace("/history");
+                }}
+                className="flex-1 py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs uppercase tracking-wider active:scale-95 transition-all"
+              >
+                Done
+              </button>
+            </div>
           </div>
-        )}
-      </main>
+        </main>
+      );
+    }
+
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 gap-3">
+        <Dumbbell className="w-8 h-8 text-emerald-400 animate-spin" />
+        <p className="text-sm font-semibold tracking-wide">Returning to Home...</p>
+      </div>
     );
   }
 
@@ -344,7 +272,7 @@ export default function ActiveWorkoutPage() {
 
           <button
             type="button"
-            onClick={handleDiscard}
+            onClick={() => setShowDiscardModal(true)}
             className="w-9 h-9 min-w-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-red-400 active:scale-95 transition-colors"
             title="Discard Workout"
           >
@@ -416,10 +344,16 @@ export default function ActiveWorkoutPage() {
           </div>
         ) : (
           exerciseGroups.map((group) => {
+            const isCardio = isCardioExercise(group.exercise);
+
             return (
               <section
                 key={group.exercise.id}
-                className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-3.5 space-y-3 shadow-md"
+                className={`border rounded-2xl p-3.5 space-y-3 shadow-md transition-all ${
+                  isCardio
+                    ? "bg-zinc-900/70 border-cyan-900/40 hover:border-cyan-700/50"
+                    : "bg-zinc-900/60 border-zinc-800 hover:border-zinc-700/80"
+                }`}
               >
                 {/* Exercise Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
@@ -435,9 +369,17 @@ export default function ActiveWorkoutPage() {
                       <span className="font-bold text-sm text-zinc-100 truncate">
                         {group.exercise.name}
                       </span>
-                      <span className="text-[11px] text-zinc-400 truncate">
-                        {group.exercise.category} •{" "}
-                        <span className="text-emerald-400">{group.exercise.primaryMuscle}</span>
+                      <span className="text-[11px] text-zinc-400 truncate flex items-center gap-1.5">
+                        {isCardio ? (
+                          <span className="px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 font-bold text-[10px]">
+                            Cardio Movement
+                          </span>
+                        ) : (
+                          <>
+                            {group.exercise.category} •{" "}
+                            <span className="text-emerald-400">{group.exercise.primaryMuscle}</span>
+                          </>
+                        )}
                       </span>
                     </div>
                   </div>
@@ -453,19 +395,41 @@ export default function ActiveWorkoutPage() {
                 </div>
 
                 {/* Sets Header Labels */}
-                <div className="grid grid-cols-[36px_70px_1fr_1fr_36px_44px] gap-2 px-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                  <span>Set</span>
-                  <span>Prev</span>
-                  <span className="text-center">kg</span>
-                  <span className="text-center">Reps</span>
-                  <span className="text-center">Step</span>
-                  <span className="text-center">Done</span>
-                </div>
+                {isCardio ? (
+                  <div className="flex items-center justify-between px-3.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400/80">
+                    <span className="w-9 text-center">Round</span>
+                    <span className="min-w-[70px]">Prev</span>
+                    <span className="flex-1 max-w-[100px] text-center">Time (m)</span>
+                    <span className="flex-1 max-w-[100px] text-center">Dist (km)</span>
+                    <span className="w-[74px] text-center">Done</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[36px_70px_1fr_1fr_36px_44px_32px] gap-2 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <span>Set</span>
+                    <span>Prev</span>
+                    <span className="text-center">kg</span>
+                    <span className="text-center">Reps</span>
+                    <span className="text-center">Step</span>
+                    <span className="text-center">Done</span>
+                    <span></span>
+                  </div>
+                )}
 
                 {/* Set Rows */}
                 <div className="space-y-2">
                   {group.sets.map((setLog) => {
                     const ghost = group.ghostSets.find((g) => g.setNumber === setLog.setNumber);
+                    if (isCardio) {
+                      return (
+                        <CardioSetRow
+                          key={setLog.id}
+                          exerciseId={group.exercise.id}
+                          exerciseName={group.exercise.name}
+                          setLog={setLog}
+                          ghostData={ghost}
+                        />
+                      );
+                    }
                     return (
                       <LiveSetRow
                         key={setLog.id}
@@ -482,10 +446,14 @@ export default function ActiveWorkoutPage() {
                 <button
                   type="button"
                   onClick={() => void addSet(group.exercise.id, "NORMAL")}
-                  className="w-full py-2.5 min-h-[44px] rounded-xl bg-zinc-950/80 border border-zinc-800/80 hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200 font-bold text-xs flex items-center justify-center gap-1.5 active:bg-zinc-800 transition-colors"
+                  className={`w-full py-2.5 min-h-[44px] rounded-xl border font-bold text-xs flex items-center justify-center gap-1.5 transition-colors ${
+                    isCardio
+                      ? "bg-zinc-950/80 border-cyan-900/40 hover:bg-cyan-950/20 text-cyan-300"
+                      : "bg-zinc-950/80 border-zinc-800/80 hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200"
+                  }`}
                 >
-                  <Plus className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Add Set</span>
+                  <Plus className={`w-3.5 h-3.5 ${isCardio ? "text-cyan-400" : "text-emerald-400"}`} />
+                  <span>{isCardio ? "Add Cardio Round" : "Add Set"}</span>
                 </button>
               </section>
             );
@@ -523,6 +491,18 @@ export default function ActiveWorkoutPage() {
       <PlateCalculatorModal
         isOpen={showPlateCalculator}
         onClose={() => setShowPlateCalculator(false)}
+      />
+
+      {/* Modern Discard Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDiscardModal}
+        title="Discard Workout?"
+        description="Are you sure you want to discard this workout? All progress will be lost."
+        confirmLabel="Discard"
+        cancelLabel="Keep Going"
+        variant="danger"
+        onConfirm={handleConfirmDiscard}
+        onCancel={() => setShowDiscardModal(false)}
       />
     </div>
   );

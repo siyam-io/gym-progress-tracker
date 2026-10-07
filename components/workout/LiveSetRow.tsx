@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, Flame, Trophy, Minus, Plus, ChevronDown } from "lucide-react";
+import { Check, Flame, Trophy, Minus, Plus, ChevronDown, Trash2 } from "lucide-react";
 import { LocalSetLog, SetType } from "@/lib/db/dexie";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
@@ -19,7 +19,7 @@ export function LiveSetRow({
   setLog,
   ghostData,
 }: LiveSetRowProps) {
-  const { updateSet, toggleSetCompleted } = useWorkoutStore();
+  const { updateSet, toggleSetCompleted, removeSet } = useWorkoutStore();
   const [showStepperDrawer, setShowStepperDrawer] = useState(false);
 
   const handleWeightDelta = (delta: number) => {
@@ -158,6 +158,16 @@ export function LiveSetRow({
               setLog.isCompleted ? "scale-110" : ""
             }`}
           />
+        </button>
+
+        {/* Delete Set Button */}
+        <button
+          type="button"
+          onClick={() => void removeSet(exerciseId, setLog.id)}
+          className="w-8 h-11 min-w-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
+          title="Delete this set"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
 

@@ -33,7 +33,6 @@ export function SyncStatusBadge() {
 
     const handleOffline = () => {
       setIsOnline(false);
-      toast.info("Offline mode active. All workouts are saved locally.");
     };
 
     window.addEventListener("online", handleOnline);
@@ -50,21 +49,15 @@ export function SyncStatusBadge() {
 
   const handleSync = async () => {
     if (!navigator.onLine) {
-      toast.info("Offline mode: changes will sync once internet returns.");
       return;
     }
 
     setIsSyncing(true);
     try {
-      const res = await processSyncQueue();
+      await processSyncQueue();
       await checkStatus();
-      if (res.processedCount > 0) {
-        toast.success(`Synced ${res.processedCount} update${res.processedCount > 1 ? "s" : ""} to cloud!`);
-      } else {
-        toast.info("Everything is up to date.");
-      }
     } catch {
-      toast.error("Sync attempt failed. Will retry automatically.");
+      // Background retry silently
     } finally {
       setIsSyncing(false);
     }
@@ -89,11 +82,12 @@ export function SyncStatusBadge() {
       <button
         type="button"
         onClick={handleSync}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-400 hover:bg-amber-500/20 transition-colors"
-        title="Syncing pending mutations to cloud"
+        className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] font-mono text-amber-400 hover:bg-amber-500/20 active:scale-95 transition-all shrink-0"
+        title={`${pendingCount} offline updates pending sync. Tap to sync now.`}
       >
-        <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? "animate-spin" : ""}`} />
-        <span>{pendingCount > 0 ? `${pendingCount} pending` : "Syncing"}</span>
+        <RefreshCw className={`w-3 h-3 text-amber-400 ${isSyncing ? "animate-spin" : ""}`} />
+        <span className="font-bold">{pendingCount > 0 ? (pendingCount > 99 ? "99+" : pendingCount) : "Sync"}</span>
+        <span className="hidden sm:inline text-[10px] opacity-80">pending</span>
       </button>
     );
   }

@@ -47,6 +47,7 @@ export function ExerciseThumbnail({
           src={imageUrl}
           alt={name}
           fill
+          unoptimized
           sizes="(max-width: 768px) 100vw, 300px"
           className="object-cover"
           loading="lazy"

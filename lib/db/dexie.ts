@@ -1,6 +1,6 @@
 import Dexie, { Table } from "dexie";
 
-export type ExerciseCategory = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT";
+export type ExerciseCategory = "BARBELL" | "DUMBBELL" | "MACHINE" | "CABLE" | "BODYWEIGHT" | "CARDIO";
 export type SetType = "WARMUP" | "NORMAL" | "DROPSET" | "FAILURE";
 export type SessionStatus = "IN_PROGRESS" | "COMPLETED";
 
@@ -127,7 +127,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   // --- Warm Up & Cardio ---
   {
     id: "ex-warm-up",
-    name: "Full Body Warm Up",
+    name: "Warm up",
     category: "BODYWEIGHT",
     primaryMuscle: "Full Body",
     secondaryMuscles: ["Core", "Shoulders"],
@@ -138,8 +138,8 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-treadmill",
     imageUrl: "https://images.unsplash.com/photo-1538805060514-97d9cc17730c?w=600&auto=format&fit=crop&q=80",
-    name: "Treadmill Run / Walk (10 mins)",
-    category: "MACHINE",
+    name: "Treadmill",
+    category: "CARDIO",
     primaryMuscle: "Cardio",
     secondaryMuscles: ["Quadriceps", "Calves"],
     isCustom: false,
@@ -148,8 +148,8 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-cross-trainer",
-    name: "Cross Trainer / Elliptical (10 mins)",
-    category: "MACHINE",
+    name: "Cross train",
+    category: "CARDIO",
     primaryMuscle: "Cardio",
     secondaryMuscles: ["Full Body"],
     isCustom: false,
@@ -158,10 +158,40 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-stationary-cycle",
-    name: "Stationary Cycle (10 mins)",
-    category: "MACHINE",
+    name: "Cycle",
+    category: "CARDIO",
     primaryMuscle: "Cardio",
     secondaryMuscles: ["Quadriceps", "Hamstrings"],
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "ex-jump-rope",
+    name: "Jump Rope",
+    category: "CARDIO",
+    primaryMuscle: "Cardio",
+    secondaryMuscles: ["Calves", "Shoulders"],
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "ex-rowing-machine",
+    name: "Rowing Machine",
+    category: "CARDIO",
+    primaryMuscle: "Cardio",
+    secondaryMuscles: ["Back", "Legs"],
+    isCustom: false,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  },
+  {
+    id: "ex-stair-climber",
+    name: "Stair Climber",
+    category: "CARDIO",
+    primaryMuscle: "Cardio",
+    secondaryMuscles: ["Glutes", "Quadriceps"],
     isCustom: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -171,7 +201,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-push-up",
     imageUrl: "https://images.unsplash.com/photo-1598971457999-ca8ef7d6d0c1?w=600&auto=format&fit=crop&q=80",
-    name: "Push-Up",
+    name: "Push up",
     category: "BODYWEIGHT",
     primaryMuscle: "Chest",
     secondaryMuscles: ["Triceps", "Anterior Deltoids"],
@@ -182,7 +212,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-incline-press",
     imageUrl: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&auto=format&fit=crop&q=80",
-    name: "Incline Chest Press",
+    name: "Incline Press (Machine)",
     category: "MACHINE",
     primaryMuscle: "Chest",
     secondaryMuscles: ["Anterior Deltoids", "Triceps"],
@@ -193,7 +223,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-barbell-bench-press",
     imageUrl: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&auto=format&fit=crop&q=80",
-    name: "Barbell Bench Press",
+    name: "Flat bench",
     category: "BARBELL",
     primaryMuscle: "Chest",
     secondaryMuscles: ["Triceps", "Anterior Deltoids"],
@@ -214,7 +244,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-pec-deck-fly",
-    name: "Pec Deck Fly",
+    name: "Peck deck fly",
     category: "MACHINE",
     primaryMuscle: "Chest",
     secondaryMuscles: ["Anterior Deltoids"],
@@ -224,7 +254,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-decline-press",
-    name: "Decline Chest Press",
+    name: "Decline Press",
     category: "BARBELL",
     primaryMuscle: "Chest",
     secondaryMuscles: ["Triceps", "Anterior Deltoids"],
@@ -237,7 +267,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-cable-tricep-pushdown",
     imageUrl: "https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?w=600&auto=format&fit=crop&q=80",
-    name: "Cable Tricep Pushdown",
+    name: "Cable Pushdown",
     category: "CABLE",
     primaryMuscle: "Triceps",
     secondaryMuscles: [],
@@ -247,7 +277,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-parallel-bar-dips",
-    name: "Dips (Parallel Bars)",
+    name: "Dips",
     category: "BODYWEIGHT",
     primaryMuscle: "Triceps",
     secondaryMuscles: ["Chest", "Anterior Deltoids"],
@@ -257,7 +287,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-overhead-tricep-extension",
-    name: "Overhead Tricep Extension",
+    name: "Overhead ext",
     category: "DUMBBELL",
     primaryMuscle: "Triceps",
     secondaryMuscles: [],
@@ -303,7 +333,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-bodyweight-pullup",
     imageUrl: "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=600&auto=format&fit=crop&q=80",
-    name: "Pull-Up",
+    name: "Pull up",
     category: "BODYWEIGHT",
     primaryMuscle: "Back",
     secondaryMuscles: ["Biceps", "Core"],
@@ -314,7 +344,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-cable-lat-pulldown",
     imageUrl: "https://images.unsplash.com/photo-1605296867304-46d5465a13f1?w=600&auto=format&fit=crop&q=80",
-    name: "Lat Pulldown",
+    name: "Lat Pull down",
     category: "CABLE",
     primaryMuscle: "Back",
     secondaryMuscles: ["Biceps"],
@@ -324,7 +354,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-reverse-lat-pulldown",
-    name: "Reverse Grip Lat Pulldown",
+    name: "R-Pull down (Reverse Grip Lat Pulldown)",
     category: "CABLE",
     primaryMuscle: "Back",
     secondaryMuscles: ["Biceps"],
@@ -334,7 +364,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-seated-cable-row",
-    name: "Seated Cable Row",
+    name: "Seated row",
     category: "CABLE",
     primaryMuscle: "Back",
     secondaryMuscles: ["Biceps", "Traps"],
@@ -344,7 +374,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-hyperextension",
-    name: "Hyperextension",
+    name: "Hyperextension (Hyper ext)",
     category: "BODYWEIGHT",
     primaryMuscle: "Lower Back",
     secondaryMuscles: ["Glutes", "Hamstrings"],
@@ -354,7 +384,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-low-cable-row",
-    name: "Low Cable Row",
+    name: "Low row",
     category: "CABLE",
     primaryMuscle: "Back",
     secondaryMuscles: ["Biceps", "Rear Deltoids"],
@@ -367,7 +397,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-barbell-curl",
     imageUrl: "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=600&auto=format&fit=crop&q=80",
-    name: "Barbell Bicep Curl (BB Curl)",
+    name: "BB curl (Barbell Curl)",
     category: "BARBELL",
     primaryMuscle: "Biceps",
     secondaryMuscles: ["Forearms"],
@@ -377,7 +407,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-hammer-curl",
-    name: "Dumbbell Hammer Curl",
+    name: "Hammer curl",
     category: "DUMBBELL",
     primaryMuscle: "Biceps",
     secondaryMuscles: ["Forearms"],
@@ -387,7 +417,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-preacher-curl",
-    name: "Preacher Curl",
+    name: "Preacher curl",
     category: "MACHINE",
     primaryMuscle: "Biceps",
     secondaryMuscles: [],
@@ -400,7 +430,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-barbell-squat",
     imageUrl: "https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=600&auto=format&fit=crop&q=80",
-    name: "Barbell Back Squat",
+    name: "Squats",
     category: "BARBELL",
     primaryMuscle: "Quadriceps",
     secondaryMuscles: ["Glutes", "Hamstrings"],
@@ -410,7 +440,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-walking-lunges",
-    name: "Walking Lunges",
+    name: "Walking lunges",
     category: "DUMBBELL",
     primaryMuscle: "Quadriceps",
     secondaryMuscles: ["Glutes", "Hamstrings"],
@@ -421,7 +451,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   {
     id: "ex-leg-extension",
     imageUrl: "https://images.unsplash.com/photo-1434682881908-b43d0467b798?w=600&auto=format&fit=crop&q=80",
-    name: "Leg Extension",
+    name: "Leg ext (Leg Extension)",
     category: "MACHINE",
     primaryMuscle: "Quadriceps",
     secondaryMuscles: [],
@@ -431,7 +461,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-leg-curl",
-    name: "Leg Curl",
+    name: "Leg curl",
     category: "MACHINE",
     primaryMuscle: "Hamstrings",
     secondaryMuscles: ["Calves"],
@@ -441,7 +471,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-standing-calf-raise",
-    name: "Calf Raise",
+    name: "Calf raise",
     category: "MACHINE",
     primaryMuscle: "Calves",
     secondaryMuscles: [],
@@ -453,7 +483,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   // --- Shoulders & Traps ---
   {
     id: "ex-machine-shoulder-press",
-    name: "Machine Shoulder Press",
+    name: "M-Shoulder Press (Machine Shoulder Press)",
     category: "MACHINE",
     primaryMuscle: "Shoulders",
     secondaryMuscles: ["Triceps"],
@@ -463,7 +493,7 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
   },
   {
     id: "ex-dumbbell-lateral-raise",
-    name: "Side Raise (Lateral Raise)",
+    name: "Side raise",
     category: "DUMBBELL",
     primaryMuscle: "Shoulders",
     secondaryMuscles: ["Traps"],
@@ -529,28 +559,21 @@ export const DEFAULT_EXERCISES: LocalExercise[] = [
 export const DEFAULT_ROUTINES: LocalRoutine[] = [
   {
     id: "routine-day-1",
-    name: "Day #01 - Push & Core",
+    name: "Day 01",
     userId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "routine-day-2",
-    name: "Day #02 - Pull & Core",
+    name: "Day 02",
     userId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
   },
   {
     id: "routine-day-3",
-    name: "Day #03 - Legs & Shoulders",
-    userId: null,
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-  },
-  {
-    id: "routine-day-4",
-    name: "Day #04 - Cardio & Recovery",
+    name: "Day 03",
     userId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
@@ -558,7 +581,7 @@ export const DEFAULT_ROUTINES: LocalRoutine[] = [
 ];
 
 export const DEFAULT_ROUTINE_ITEMS: LocalRoutineItem[] = [
-  // --- Day #01: Chest, Triceps, Abs (Push & Core) ---
+  // --- Day 01 (14 exercises) ---
   { id: "ri-d1-1", routineId: "routine-day-1", exerciseId: "ex-warm-up", orderIndex: 1, targetSets: 1, restSeconds: 60 },
   { id: "ri-d1-2", routineId: "routine-day-1", exerciseId: "ex-treadmill", orderIndex: 2, targetSets: 1, restSeconds: 60 },
   { id: "ri-d1-3", routineId: "routine-day-1", exerciseId: "ex-cross-trainer", orderIndex: 3, targetSets: 1, restSeconds: 60 },
@@ -574,7 +597,7 @@ export const DEFAULT_ROUTINE_ITEMS: LocalRoutineItem[] = [
   { id: "ri-d1-13", routineId: "routine-day-1", exerciseId: "ex-leg-raise", orderIndex: 13, targetSets: 3, restSeconds: 45 },
   { id: "ri-d1-14", routineId: "routine-day-1", exerciseId: "ex-plank", orderIndex: 14, targetSets: 3, restSeconds: 60 },
 
-  // --- Day #02: Back, Biceps, Abs (Pull & Core) ---
+  // --- Day 02 (15 exercises) ---
   { id: "ri-d2-1", routineId: "routine-day-2", exerciseId: "ex-warm-up", orderIndex: 1, targetSets: 1, restSeconds: 60 },
   { id: "ri-d2-2", routineId: "routine-day-2", exerciseId: "ex-cross-trainer", orderIndex: 2, targetSets: 1, restSeconds: 60 },
   { id: "ri-d2-3", routineId: "routine-day-2", exerciseId: "ex-treadmill", orderIndex: 3, targetSets: 1, restSeconds: 60 },
@@ -591,7 +614,7 @@ export const DEFAULT_ROUTINE_ITEMS: LocalRoutineItem[] = [
   { id: "ri-d2-14", routineId: "routine-day-2", exerciseId: "ex-leg-raise", orderIndex: 14, targetSets: 3, restSeconds: 45 },
   { id: "ri-d2-15", routineId: "routine-day-2", exerciseId: "ex-plank", orderIndex: 15, targetSets: 3, restSeconds: 60 },
 
-  // --- Day #03: Legs, Shoulders, Traps ---
+  // --- Day 03 (11 exercises) ---
   { id: "ri-d3-1", routineId: "routine-day-3", exerciseId: "ex-warm-up", orderIndex: 1, targetSets: 1, restSeconds: 60 },
   { id: "ri-d3-2", routineId: "routine-day-3", exerciseId: "ex-stationary-cycle", orderIndex: 2, targetSets: 1, restSeconds: 60 },
   { id: "ri-d3-3", routineId: "routine-day-3", exerciseId: "ex-cross-trainer", orderIndex: 3, targetSets: 1, restSeconds: 60 },
@@ -603,14 +626,6 @@ export const DEFAULT_ROUTINE_ITEMS: LocalRoutineItem[] = [
   { id: "ri-d3-9", routineId: "routine-day-3", exerciseId: "ex-machine-shoulder-press", orderIndex: 9, targetSets: 3, restSeconds: 90 },
   { id: "ri-d3-10", routineId: "routine-day-3", exerciseId: "ex-dumbbell-lateral-raise", orderIndex: 10, targetSets: 3, restSeconds: 60 },
   { id: "ri-d3-11", routineId: "routine-day-3", exerciseId: "ex-dumbbell-shrugs", orderIndex: 11, targetSets: 3, restSeconds: 60 },
-
-  // --- Day #04: Active Recovery & Core ---
-  { id: "ri-d4-1", routineId: "routine-day-4", exerciseId: "ex-warm-up", orderIndex: 1, targetSets: 1, restSeconds: 60 },
-  { id: "ri-d4-2", routineId: "routine-day-4", exerciseId: "ex-treadmill", orderIndex: 2, targetSets: 1, restSeconds: 60 },
-  { id: "ri-d4-3", routineId: "routine-day-4", exerciseId: "ex-stationary-cycle", orderIndex: 3, targetSets: 1, restSeconds: 60 },
-  { id: "ri-d4-4", routineId: "routine-day-4", exerciseId: "ex-crunches", orderIndex: 4, targetSets: 3, restSeconds: 45 },
-  { id: "ri-d4-5", routineId: "routine-day-4", exerciseId: "ex-leg-raise", orderIndex: 5, targetSets: 3, restSeconds: 45 },
-  { id: "ri-d4-6", routineId: "routine-day-4", exerciseId: "ex-plank", orderIndex: 6, targetSets: 3, restSeconds: 60 },
 ];
 
 export interface RoutineWithExercises extends LocalRoutine {
@@ -643,18 +658,29 @@ export async function initializeLocalDb() {
     console.warn("[Dexie] Could not load extended exercise dataset:", err);
   }
 
-  // Always ensure the 4 default routines exist
-  for (const r of DEFAULT_ROUTINES) {
-    const existing = await db.routines.get(r.id);
-    if (!existing) {
-      await db.routines.put(r);
+  // Ensure only the clean Day 01, Day 02, Day 03 routines are active (migrates legacy routines)
+  const ROUTINE_VERSION_KEY = "pulse_routines_v5_day01_day02_day03";
+  const migrated = localStorage.getItem(ROUTINE_VERSION_KEY);
+  if (!migrated) {
+    // Clear legacy routines (Day #01 - Push & Core, Day #02 - Pull & Core, Day #03 - Legs & Shoulders, Day #04, etc.)
+    await db.routineItems.clear();
+    await db.routines.clear();
+    await db.routines.bulkPut(DEFAULT_ROUTINES);
+    await db.routineItems.bulkPut(DEFAULT_ROUTINE_ITEMS);
+    localStorage.setItem(ROUTINE_VERSION_KEY, "true");
+  } else {
+    for (const r of DEFAULT_ROUTINES) {
+      const existing = await db.routines.get(r.id);
+      if (!existing) {
+        await db.routines.put(r);
+      }
     }
-  }
 
-  for (const ri of DEFAULT_ROUTINE_ITEMS) {
-    const existing = await db.routineItems.get(ri.id);
-    if (!existing) {
-      await db.routineItems.put(ri);
+    for (const ri of DEFAULT_ROUTINE_ITEMS) {
+      const existing = await db.routineItems.get(ri.id);
+      if (!existing) {
+        await db.routineItems.put(ri);
+      }
     }
   }
 
@@ -710,44 +736,10 @@ export async function initializeLocalDb() {
     await db.setLogs.bulkPut(samplePastSets);
   }
 
-  // Seed default weight entry if empty
-  const weightCount = await db.bodyWeightLogs.count();
-  if (weightCount === 0) {
-    const now = new Date();
-    const today = now.toISOString().slice(0, 10);
-    const threeDaysAgo = new Date(now.getTime() - 3 * 86400000).toISOString().slice(0, 10);
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000).toISOString().slice(0, 10);
-
-    await db.bodyWeightLogs.bulkPut([
-      {
-        id: "bw-seed-7d",
-        weight: 73.0,
-        unit: "kg",
-        date: sevenDaysAgo,
-        note: "Starting weight",
-        createdAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
-        updatedAt: new Date(now.getTime() - 7 * 86400000).toISOString(),
-      },
-      {
-        id: "bw-seed-3d",
-        weight: 72.6,
-        unit: "kg",
-        date: threeDaysAgo,
-        note: "Post-training check",
-        createdAt: new Date(now.getTime() - 3 * 86400000).toISOString(),
-        updatedAt: new Date(now.getTime() - 3 * 86400000).toISOString(),
-      },
-      {
-        id: "bw-seed-today",
-        weight: 72.2,
-        unit: "kg",
-        date: today,
-        note: "Morning fasting weight",
-        createdAt: now.toISOString(),
-        updatedAt: now.toISOString(),
-      },
-    ]);
-  }
+  // Remove any legacy fake seed weight entries if present so empty state reflects actual user data
+  try {
+    await db.bodyWeightLogs.where("id").startsWith("bw-seed").delete();
+  } catch {}
 }
 
 /**
@@ -838,6 +830,75 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
   await db.routineItems.bulkPut(items);
 
   return routine;
+}
+
+/**
+ * Update an existing routine (rename, reorder, or update exercises)
+ */
+export async function updateRoutine(
+  routineId: string,
+  name: string,
+  exerciseIds: string[]
+): Promise<void> {
+  const nowIso = new Date().toISOString();
+  await db.routines.update(routineId, { name, updatedAt: nowIso });
+  await db.routineItems.where("routineId").equals(routineId).delete();
+
+  const items: LocalRoutineItem[] = exerciseIds.map((exId, idx) => ({
+    id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${idx}`,
+    routineId,
+    exerciseId: exId,
+    orderIndex: idx + 1,
+    targetSets: 3,
+    restSeconds: 90,
+  }));
+
+  await db.routineItems.bulkPut(items);
+  await enqueueSyncMutation("routine", routineId, "UPSERT", { id: routineId, name, updatedAt: nowIso });
+}
+
+/**
+ * Delete a routine and all its routine items from Dexie
+ */
+export async function deleteRoutine(routineId: string): Promise<void> {
+  await db.routineItems.where("routineId").equals(routineId).delete();
+  await db.routines.delete(routineId);
+  await enqueueSyncMutation("routine", routineId, "DELETE", { id: routineId });
+}
+
+/**
+ * Add an exercise (e.g. Cardio or strength) to an existing routine
+ */
+export async function addExerciseToRoutine(routineId: string, exerciseId: string): Promise<LocalRoutineItem> {
+  const existingItems = await db.routineItems.where("routineId").equals(routineId).sortBy("orderIndex");
+  const nextOrder = existingItems.length > 0 ? existingItems[existingItems.length - 1].orderIndex + 1 : 1;
+  const newItem: LocalRoutineItem = {
+    id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${nextOrder}`,
+    routineId,
+    exerciseId,
+    orderIndex: nextOrder,
+    targetSets: 3,
+    restSeconds: 60,
+  };
+  await db.routineItems.put(newItem);
+  return newItem;
+}
+
+/**
+ * Remove an item from a routine
+ */
+export async function removeExerciseFromRoutine(itemId: string): Promise<void> {
+  await db.routineItems.delete(itemId);
+}
+
+/**
+ * Reset routines to the default Day 01, Day 02, Day 03
+ */
+export async function resetToDefaultRoutines(): Promise<void> {
+  await db.routineItems.clear();
+  await db.routines.clear();
+  await db.routines.bulkPut(DEFAULT_ROUTINES);
+  await db.routineItems.bulkPut(DEFAULT_ROUTINE_ITEMS);
 }
 
 export interface StreakDay {

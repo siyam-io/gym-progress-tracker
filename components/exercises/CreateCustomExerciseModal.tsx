@@ -132,6 +132,7 @@ export function CreateCustomExerciseModal({
                 onChange={(e) => setCategory(e.target.value as ExerciseCategory)}
                 className="w-full px-3.5 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-xs text-zinc-100 focus:outline-none focus:border-emerald-500"
               >
+                <option value="CARDIO">Cardio</option>
                 <option value="BARBELL">Barbell</option>
                 <option value="DUMBBELL">Dumbbell</option>
                 <option value="MACHINE">Machine</option>

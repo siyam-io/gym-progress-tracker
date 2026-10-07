@@ -21,6 +21,7 @@ import { ExerciseCardSkeleton } from "@/components/ui/Skeleton";
 
 const CATEGORIES: { label: string; value: ExerciseCategory | "ALL" }[] = [
   { label: "All Equipment", value: "ALL" },
+  { label: "Cardio", value: "CARDIO" },
   { label: "Barbell", value: "BARBELL" },
   { label: "Dumbbell", value: "DUMBBELL" },
   { label: "Cable", value: "CABLE" },
@@ -30,6 +31,7 @@ const CATEGORIES: { label: string; value: ExerciseCategory | "ALL" }[] = [
 
 const MUSCLE_OPTIONS = [
   "All",
+  "Cardio",
   "Chest",
   "Back",
   "Shoulders",
@@ -51,11 +53,11 @@ export default function ExercisesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMuscle, setSelectedMuscle] = useState("All");
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | "ALL">("ALL");
-  const [visibleCount, setVisibleCount] = useState(40);
+  const [visibleCount, setVisibleCount] = useState(24);
 
   // Reset pagination on filter change
   useEffect(() => {
-    setVisibleCount(40);
+    setVisibleCount(24);
   }, [searchQuery, selectedMuscle, selectedCategory]);
 
   // Modals
@@ -66,20 +68,10 @@ export default function ExercisesPage() {
     try {
       setIsLoading(true);
       await initializeLocalDb();
-      let [exList, sets] = await Promise.all([
+      const [exList, sets] = await Promise.all([
         db.exercises.toArray(),
         db.setLogs.filter((s) => s.isCompleted).toArray(),
       ]);
-
-      if (exList.length === 0) {
-        try {
-          const res = await fetch("/data/exercises.json");
-          if (res.ok) {
-            exList = await res.json();
-            await db.exercises.bulkPut(exList);
-          }
-        } catch {}
-      }
 
       setExercises(exList);
 

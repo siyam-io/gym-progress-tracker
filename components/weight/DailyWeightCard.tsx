@@ -38,7 +38,7 @@ export function DailyWeightCard() {
 
   const [showLogModal, setShowLogModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [inputWeight, setInputWeight] = useState<number>(72.0);
+  const [inputWeight, setInputWeight] = useState<number>(65.0);
   const [inputDate, setInputDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );

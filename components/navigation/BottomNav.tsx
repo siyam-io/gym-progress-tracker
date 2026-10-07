@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Dumbbell, Calendar, TrendingUp, Library, ChevronRight, Activity } from "lucide-react";
+import { Dumbbell, Calendar, TrendingUp, Library, ChevronRight, Activity, Layers } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 export function BottomNav() {
@@ -11,14 +11,14 @@ export function BottomNav() {
   const router = useRouter();
   const { session, workoutElapsedSec, incrementWorkoutElapsed } = useWorkoutStore();
 
-  // Keep live elapsed timer ticking in background if workout is active
+  // Keep live elapsed timer ticking in background when navigating other pages during active session
   useEffect(() => {
-    if (!session) return;
+    if (!session || pathname === "/workout/active") return;
     const interval = setInterval(() => {
       incrementWorkoutElapsed();
     }, 1000);
     return () => clearInterval(interval);
-  }, [session, incrementWorkoutElapsed]);
+  }, [session, pathname, incrementWorkoutElapsed]);
 
   // Hide bottom nav on live workout floor so RestTimerBar and gym floor inputs have full space
   if (pathname === "/workout/active") {
@@ -37,9 +37,10 @@ export function BottomNav() {
 
   const navItems = [
     { label: "Home", href: "/", icon: Dumbbell },
+    { label: "Routines", href: "/routines", icon: Layers },
     { label: "History", href: "/history", icon: Calendar },
     { label: "Analytics", href: "/analytics", icon: TrendingUp },
-    { label: "Exercises", href: "/exercises", icon: Library },
+    { label: "Library", href: "/exercises", icon: Library },
   ];
 
   return (

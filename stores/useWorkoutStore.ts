@@ -97,17 +97,57 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         return;
       }
 
+      // If session is already loaded in memory, do NOT overwrite or scramble exercise order
+      const current = get();
+      if (current.session?.id === inProgressSession.id && current.exerciseGroups.length > 0) {
+        const startTimeMs = new Date(inProgressSession.startTime).getTime();
+        const elapsed = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+        set({ workoutElapsedSec: elapsed, isLoading: false });
+        return;
+      }
+
       // Load all sets for this session
       const sets = await db.setLogs.where("sessionId").equals(inProgressSession.id).toArray();
 
-      // Extract unique exercise IDs
-      const exerciseIds = Array.from(new Set(sets.map((s) => s.exerciseId)));
-      const exercises = await db.exercises.where("id").anyOf(exerciseIds).toArray();
+      // Track earliest set createdAt per exercise
+      const exerciseEarliestCreated = new Map<string, string>();
+      for (const s of sets) {
+        const cur = exerciseEarliestCreated.get(s.exerciseId);
+        if (!cur || s.createdAt < cur) {
+          exerciseEarliestCreated.set(s.exerciseId, s.createdAt);
+        }
+      }
+
+      // Determine deterministic, correct serial ordering of exercises
+      let orderedExerciseIds: string[] = [];
+      if (inProgressSession.routineId) {
+        const routineItems = await db.routineItems
+          .where("routineId")
+          .equals(inProgressSession.routineId)
+          .sortBy("orderIndex");
+        const routineExIds = routineItems.map((r) => r.exerciseId);
+
+        const sessionExSet = new Set(sets.map((s) => s.exerciseId));
+        const routinePreserved = routineExIds.filter((id) => sessionExSet.has(id));
+        const extraExercises = Array.from(sessionExSet)
+          .filter((id) => !routineExIds.includes(id))
+          .sort((a, b) =>
+            (exerciseEarliestCreated.get(a) || "").localeCompare(exerciseEarliestCreated.get(b) || "")
+          );
+
+        orderedExerciseIds = [...routinePreserved, ...extraExercises];
+      } else {
+        orderedExerciseIds = Array.from(new Set(sets.map((s) => s.exerciseId))).sort((a, b) =>
+          (exerciseEarliestCreated.get(a) || "").localeCompare(exerciseEarliestCreated.get(b) || "")
+        );
+      }
+
+      const exercises = await db.exercises.where("id").anyOf(orderedExerciseIds).toArray();
       const exerciseMap = new Map(exercises.map((e) => [e.id, e]));
 
-      // Group sets by exercise
+      // Group sets by exercise in the exact ordered sequence
       const groups: ExerciseGroup[] = [];
-      for (const exId of exerciseIds) {
+      for (const exId of orderedExerciseIds) {
         const exercise = exerciseMap.get(exId);
         if (!exercise) continue;
 
@@ -164,27 +204,38 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     await enqueueSyncMutation("workoutSession", sessionId, "UPSERT", newSession as unknown as Record<string, unknown>);
 
     const groups: ExerciseGroup[] = [];
+    const baseTimeMs = Date.now();
 
-    // If initial exercises provided, populate with 3 default sets with ghost data
-    for (const ex of initialExercises) {
+    // If initial exercises provided, populate with default sets (1 set for cardio, 3 for lifting)
+    for (let exIdx = 0; exIdx < initialExercises.length; exIdx++) {
+      const ex = initialExercises[exIdx];
+      const isCardio =
+        ex.category === "CARDIO" ||
+        ex.primaryMuscle?.toLowerCase() === "cardio" ||
+        ["warm up", "treadmill", "cross train", "cycle", "jump rope", "rowing", "stair"].some((k) =>
+          ex.name.toLowerCase().includes(k)
+        );
+
+      const targetSetsCount = isCardio ? 1 : 3;
       const ghostSets = await getPreviousExerciseSets(ex.id);
       const defaultSets: LocalSetLog[] = [];
+      const exCreatedAt = new Date(baseTimeMs + exIdx * 100).toISOString();
 
-      for (let i = 1; i <= 3; i++) {
+      for (let i = 1; i <= targetSetsCount; i++) {
         const ghost = ghostSets.find((g) => g.setNumber === i);
         const setLog: LocalSetLog = {
           id: uuidv4(),
           sessionId,
           exerciseId: ex.id,
           setNumber: i,
-          weight: ghost ? ghost.weight : 20,
-          reps: ghost ? ghost.reps : 10,
+          weight: isCardio ? (ghost ? ghost.weight : 1.0) : (ghost ? ghost.weight : 20),
+          reps: isCardio ? (ghost ? ghost.reps : 10) : (ghost ? ghost.reps : 10),
           rpe: 8,
-          setType: i === 1 ? "WARMUP" : "NORMAL",
+          setType: i === 1 ? (isCardio ? "NORMAL" : "WARMUP") : "NORMAL",
           isCompleted: false,
           isPR: false,
-          createdAt: nowIso,
-          updatedAt: nowIso,
+          createdAt: exCreatedAt,
+          updatedAt: exCreatedAt,
         };
         defaultSets.push(setLog);
       }
@@ -213,8 +264,10 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   resumeWorkout: () => set({ isPaused: false }),
   incrementWorkoutElapsed: () => {
     const { isPaused, session } = get();
-    if (!isPaused && session) {
-      set((state) => ({ workoutElapsedSec: state.workoutElapsedSec + 1 }));
+    if (!isPaused && session?.startTime) {
+      const startTimeMs = new Date(session.startTime).getTime();
+      const elapsed = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+      set({ workoutElapsedSec: elapsed });
     }
   },
 
@@ -225,22 +278,29 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     // Avoid duplicates
     if (exerciseGroups.some((g) => g.exercise.id === exercise.id)) return;
 
+    const isCardio =
+      exercise.category === "CARDIO" ||
+      exercise.primaryMuscle?.toLowerCase() === "cardio" ||
+      ["warm up", "treadmill", "cross train", "cycle", "jump rope", "rowing", "stair"].some((k) =>
+        exercise.name.toLowerCase().includes(k)
+      );
+
+    const targetSetsCount = isCardio ? 1 : 3;
     const ghostSets = await getPreviousExerciseSets(exercise.id);
     const nowIso = new Date().toISOString();
 
-    // Default with 3 sets
     const newSets: LocalSetLog[] = [];
-    for (let i = 1; i <= 3; i++) {
+    for (let i = 1; i <= targetSetsCount; i++) {
       const ghost = ghostSets.find((g) => g.setNumber === i);
       const setLog: LocalSetLog = {
         id: uuidv4(),
         sessionId: session.id,
         exerciseId: exercise.id,
         setNumber: i,
-        weight: ghost ? ghost.weight : 20,
-        reps: ghost ? ghost.reps : 10,
+        weight: isCardio ? (ghost ? ghost.weight : 1.0) : (ghost ? ghost.weight : 20),
+        reps: isCardio ? (ghost ? ghost.reps : 10) : (ghost ? ghost.reps : 10),
         rpe: 8,
-        setType: i === 1 ? "WARMUP" : "NORMAL",
+        setType: i === 1 ? (isCardio ? "NORMAL" : "WARMUP") : "NORMAL",
         isCompleted: false,
         isPR: false,
         createdAt: nowIso,
@@ -394,7 +454,6 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       if (isPR) {
         playPRFanfare();
-        toast.success(`🔥 NEW PR: ${group.exercise.name} ${targetSet.weight}kg × ${targetSet.reps}!`);
       } else {
         playTapSound();
       }
