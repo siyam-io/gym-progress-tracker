@@ -1203,6 +1203,28 @@ export async function createCustomExercise(data: {
   return newExercise;
 }
 
+/**
+ * Update an existing exercise (name, category, muscles)
+ */
+export async function updateExercise(
+  exerciseId: string,
+  updates: Partial<Omit<LocalExercise, "id">>
+): Promise<LocalExercise | null> {
+  const existing = await db.exercises.get(exerciseId);
+  if (!existing) return null;
+
+  const nowIso = new Date().toISOString();
+  const updated: LocalExercise = {
+    ...existing,
+    ...updates,
+    updatedAt: nowIso,
+  };
+
+  await db.exercises.put(updated);
+  await enqueueSyncMutation("exercise", exerciseId, "UPSERT", updated as unknown as Record<string, unknown>);
+  return updated;
+}
+
 export interface ExerciseHistorySession {
   sessionId: string;
   sessionTitle: string;

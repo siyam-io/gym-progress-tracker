@@ -87,7 +87,7 @@ export function CardioSetRow({
                 const val = parseInt(e.target.value, 10);
                 void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : Math.max(0, val) });
               }}
-              className="w-14 h-9 bg-zinc-950 border border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-lg text-center font-mono font-bold text-sm text-zinc-100"
+              className="w-14 h-9 bg-zinc-950 border border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-lg text-center font-mono font-bold text-sm text-zinc-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               placeholder="10"
             />
           </div>
@@ -109,7 +109,7 @@ export function CardioSetRow({
                 const val = parseFloat(e.target.value);
                 void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : Math.max(0, val) });
               }}
-              className="w-14 h-9 bg-zinc-950 border border-zinc-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg text-center font-mono font-bold text-sm text-zinc-100"
+              className="w-14 h-9 bg-zinc-950 border border-zinc-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg text-center font-mono font-bold text-sm text-zinc-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               placeholder="1.0"
             />
           </div>

@@ -99,7 +99,7 @@ export function LiveSetRow({
                 const val = parseFloat(e.target.value);
                 void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : val });
               }}
-              className="w-full text-center bg-transparent text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+              className="w-full text-center bg-transparent text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
@@ -119,7 +119,7 @@ export function LiveSetRow({
                 const val = parseInt(e.target.value, 10);
                 void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : val });
               }}
-              className="w-full text-center bg-transparent text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none"
+              className="w-full text-center bg-transparent text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
