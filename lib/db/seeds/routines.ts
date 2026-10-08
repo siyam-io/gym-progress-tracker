@@ -3,7 +3,7 @@ import { LocalRoutine, LocalRoutineItem } from "@/types/workout";
 export const DEFAULT_ROUTINES: LocalRoutine[] = [
   {
     id: "routine-day-1",
-    name: "Day 01",
+    name: "Push Day",
     userId: null,
     isSystem: true,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -11,7 +11,7 @@ export const DEFAULT_ROUTINES: LocalRoutine[] = [
   },
   {
     id: "routine-day-2",
-    name: "Day 02",
+    name: "Pull Day",
     userId: null,
     isSystem: true,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -19,7 +19,7 @@ export const DEFAULT_ROUTINES: LocalRoutine[] = [
   },
   {
     id: "routine-day-3",
-    name: "Day 03",
+    name: "Leg Day",
     userId: null,
     isSystem: true,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -28,17 +28,17 @@ export const DEFAULT_ROUTINES: LocalRoutine[] = [
 ];
 
 export const DEFAULT_ROUTINE_ITEMS: LocalRoutineItem[] = [
-  // --- Day 01 (14 exercises) ---
+  // --- Push Day (14 exercises) ---
   { id: "ri-d1-1", routineId: "routine-day-1", exerciseId: "ex-warm-up", orderIndex: 1, targetSets: 1, restSeconds: 60 },
-  { id: "ri-d1-2", routineId: "routine-day-1", exerciseId: "ex-treadmill", orderIndex: 2, targetSets: 1, restSeconds: 60 },
-  { id: "ri-d1-3", routineId: "routine-day-1", exerciseId: "ex-cross-trainer", orderIndex: 3, targetSets: 1, restSeconds: 60 },
-  { id: "ri-d1-4", routineId: "routine-day-1", exerciseId: "ex-push-up", orderIndex: 4, targetSets: 3, restSeconds: 60 },
-  { id: "ri-d1-5", routineId: "routine-day-1", exerciseId: "ex-incline-press", orderIndex: 5, targetSets: 3, restSeconds: 90 },
-  { id: "ri-d1-6", routineId: "routine-day-1", exerciseId: "ex-barbell-bench-press", orderIndex: 6, targetSets: 3, restSeconds: 90 },
-  { id: "ri-d1-7", routineId: "routine-day-1", exerciseId: "ex-pec-deck-fly", orderIndex: 7, targetSets: 3, restSeconds: 60 },
-  { id: "ri-d1-8", routineId: "routine-day-1", exerciseId: "ex-decline-press", orderIndex: 8, targetSets: 3, restSeconds: 90 },
-  { id: "ri-d1-9", routineId: "routine-day-1", exerciseId: "ex-cable-tricep-pushdown", orderIndex: 9, targetSets: 3, restSeconds: 60 },
-  { id: "ri-d1-10", routineId: "routine-day-1", exerciseId: "ex-parallel-bar-dips", orderIndex: 10, targetSets: 3, restSeconds: 60 },
+  { id: "ri-d1-10", routineId: "routine-day-1", exerciseId: "ex-parallel-bar-dips", orderIndex: 2, targetSets: 3, restSeconds: 60 },
+  { id: "ri-d1-2", routineId: "routine-day-1", exerciseId: "ex-treadmill", orderIndex: 3, targetSets: 1, restSeconds: 60 },
+  { id: "ri-d1-3", routineId: "routine-day-1", exerciseId: "ex-cross-trainer", orderIndex: 4, targetSets: 1, restSeconds: 60 },
+  { id: "ri-d1-4", routineId: "routine-day-1", exerciseId: "ex-push-up", orderIndex: 5, targetSets: 3, restSeconds: 60 },
+  { id: "ri-d1-5", routineId: "routine-day-1", exerciseId: "ex-incline-press", orderIndex: 6, targetSets: 3, restSeconds: 90 },
+  { id: "ri-d1-6", routineId: "routine-day-1", exerciseId: "ex-barbell-bench-press", orderIndex: 7, targetSets: 3, restSeconds: 90 },
+  { id: "ri-d1-7", routineId: "routine-day-1", exerciseId: "ex-pec-deck-fly", orderIndex: 8, targetSets: 3, restSeconds: 60 },
+  { id: "ri-d1-8", routineId: "routine-day-1", exerciseId: "ex-decline-press", orderIndex: 9, targetSets: 3, restSeconds: 90 },
+  { id: "ri-d1-9", routineId: "routine-day-1", exerciseId: "ex-cable-tricep-pushdown", orderIndex: 10, targetSets: 3, restSeconds: 60 },
   { id: "ri-d1-11", routineId: "routine-day-1", exerciseId: "ex-overhead-tricep-extension", orderIndex: 11, targetSets: 3, restSeconds: 60 },
   { id: "ri-d1-12", routineId: "routine-day-1", exerciseId: "ex-crunches", orderIndex: 12, targetSets: 3, restSeconds: 45 },
   { id: "ri-d1-13", routineId: "routine-day-1", exerciseId: "ex-leg-raise", orderIndex: 13, targetSets: 3, restSeconds: 45 },

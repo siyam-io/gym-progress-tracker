@@ -252,9 +252,22 @@ export async function ensureSystemRoutines(): Promise<void> {
     if (!existing || existing.name !== defRoutine.name) {
       await db.routines.put({ ...defRoutine, isSystem: true });
     }
-    const existingItemsCount = await db.routineItems.where("routineId").equals(defRoutine.id).count();
-    if (existingItemsCount === 0) {
-      const defItems = DEFAULT_ROUTINE_ITEMS.filter((i) => i.routineId === defRoutine.id);
+    const defItems = DEFAULT_ROUTINE_ITEMS.filter((i) => i.routineId === defRoutine.id);
+    const existingItems = await db.routineItems
+      .where("routineId")
+      .equals(defRoutine.id)
+      .sortBy("orderIndex");
+
+    const isOrderDifferent =
+      existingItems.length !== defItems.length ||
+      existingItems.some(
+        (it, idx) =>
+          it.exerciseId !== defItems[idx]?.exerciseId ||
+          it.orderIndex !== defItems[idx]?.orderIndex
+      );
+
+    if (isOrderDifferent) {
+      await db.routineItems.where("routineId").equals(defRoutine.id).delete();
       await db.routineItems.bulkPut(defItems);
     }
   }
