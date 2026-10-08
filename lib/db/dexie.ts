@@ -673,22 +673,193 @@ export async function initializeLocalDb() {
       const existing = await db.routines.get(r.id);
       if (!existing) {
         await db.routines.put(r);
-      }
-    }
-
-    for (const ri of DEFAULT_ROUTINE_ITEMS) {
-      const existing = await db.routineItems.get(ri.id);
-      if (!existing) {
-        await db.routineItems.put(ri);
+        const routineDefaultItems = DEFAULT_ROUTINE_ITEMS.filter((ri) => ri.routineId === r.id);
+        await db.routineItems.bulkPut(routineDefaultItems);
       }
     }
   }
+
+  // Auto-deduplicate any corrupt duplicate routine items or duplicate sets
+  await deduplicateDatabaseRecords();
 
   // One-time complete purge of all user data logs (workout sessions, set logs, body weights, outbox queue)
   const LOGS_PURGE_VERSION = "pulse_user_logs_purged_v1";
   if (typeof window !== "undefined" && !localStorage.getItem(LOGS_PURGE_VERSION)) {
     await clearLocalUserData();
     localStorage.setItem(LOGS_PURGE_VERSION, "true");
+  }
+}
+
+/**
+ * Clean up duplicate routine items and duplicate sets that may have occurred due to legacy bugs
+ */
+export async function deduplicateDatabaseRecords(): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  try {
+    // 1. Deduplicate routine items (e.g. Side raise, Shrugs appearing twice in same routine)
+    const allRoutines = await db.routines.toArray();
+    for (const r of allRoutines) {
+      const items = await db.routineItems.where("routineId").equals(r.id).sortBy("orderIndex");
+      const seenExIds = new Set<string>();
+      const idsToDelete: string[] = [];
+      const cleanItems: LocalRoutineItem[] = [];
+
+      for (const it of items) {
+        if (seenExIds.has(it.exerciseId)) {
+          idsToDelete.push(it.id);
+        } else {
+          seenExIds.add(it.exerciseId);
+          cleanItems.push(it);
+        }
+      }
+
+      if (idsToDelete.length > 0) {
+        await db.routineItems.where("id").anyOf(idsToDelete).delete();
+        // Re-index remaining items 1..N
+        const reindexed = cleanItems.map((it, idx) => ({ ...it, orderIndex: idx + 1 }));
+        await db.routineItems.bulkPut(reindexed);
+      }
+    }
+
+    // 2. Deduplicate sets in workout sessions (e.g. Calf raise showing duplicate set 1, 2, 3)
+    const allSessions = await db.workoutSessions.toArray();
+    for (const session of allSessions) {
+      const sets = await db.setLogs.where("sessionId").equals(session.id).sortBy("createdAt");
+      const byExercise = new Map<string, LocalSetLog[]>();
+      for (const s of sets) {
+        if (!byExercise.has(s.exerciseId)) byExercise.set(s.exerciseId, []);
+        byExercise.get(s.exerciseId)!.push(s);
+      }
+
+      let sessionModified = false;
+      const idsToDelete: string[] = [];
+      const setsToUpdate: LocalSetLog[] = [];
+
+      for (const [_, exSets] of byExercise) {
+        const seenSetNumbers = new Set<number>();
+        const uniqueSets: LocalSetLog[] = [];
+
+        for (const s of exSets) {
+          if (seenSetNumbers.has(s.setNumber)) {
+            const prevIndex = uniqueSets.findIndex((u) => u.setNumber === s.setNumber);
+            if (prevIndex !== -1 && !uniqueSets[prevIndex].isCompleted && s.isCompleted) {
+              idsToDelete.push(uniqueSets[prevIndex].id);
+              uniqueSets[prevIndex] = s;
+            } else {
+              idsToDelete.push(s.id);
+            }
+            sessionModified = true;
+          } else {
+            seenSetNumbers.add(s.setNumber);
+            uniqueSets.push(s);
+          }
+        }
+
+        uniqueSets.forEach((s, idx) => {
+          if (s.setNumber !== idx + 1) {
+            s.setNumber = idx + 1;
+            setsToUpdate.push(s);
+            sessionModified = true;
+          }
+        });
+      }
+
+      if (idsToDelete.length > 0) {
+        await db.setLogs.where("id").anyOf(idsToDelete).delete();
+      }
+      if (setsToUpdate.length > 0) {
+        await db.setLogs.bulkPut(setsToUpdate);
+      }
+
+      if (sessionModified) {
+        const remainingSets = await db.setLogs.where("sessionId").equals(session.id).toArray();
+        const totalVolume = remainingSets
+          .filter((s) => s.isCompleted)
+          .reduce((sum, s) => sum + s.weight * s.reps, 0);
+        await db.workoutSessions.update(session.id, { totalVolume: Math.round(totalVolume) });
+      }
+    }
+
+    // 3. Deduplicate duplicate workout sessions (e.g. mobile duplicated copies or offline sync repeats)
+    const freshSessions = await db.workoutSessions.toArray();
+    freshSessions.sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime());
+
+    const processedSessionIds = new Set<string>();
+    const sessionIdsToDelete: string[] = [];
+
+    for (let i = 0; i < freshSessions.length; i++) {
+      const s1 = freshSessions[i];
+      if (processedSessionIds.has(s1.id)) continue;
+
+      const t1 = new Date(s1.startTime).getTime();
+      const normTitle1 = (s1.title || "").trim().toLowerCase();
+
+      for (let j = i + 1; j < freshSessions.length; j++) {
+        const s2 = freshSessions[j];
+        if (processedSessionIds.has(s2.id)) continue;
+
+        const t2 = new Date(s2.startTime).getTime();
+        const normTitle2 = (s2.title || "").trim().toLowerCase();
+
+        // Check if duplicate: same title and start time within 15 minutes
+        const timeDiffMinutes = Math.abs(t1 - t2) / (1000 * 60);
+        const isDuplicateCandidate = normTitle1 === normTitle2 && timeDiffMinutes <= 15;
+
+        if (isDuplicateCandidate) {
+          const sets1 = await db.setLogs.where("sessionId").equals(s1.id).toArray();
+          const sets2 = await db.setLogs.where("sessionId").equals(s2.id).toArray();
+
+          const completed1 = sets1.filter((s) => s.isCompleted).length;
+          const completed2 = sets2.filter((s) => s.isCompleted).length;
+
+          let winner = s1;
+          let loser = s2;
+          let winnerSets = sets1;
+          let loserSets = sets2;
+
+          if (completed2 > completed1 || (completed2 === completed1 && (s2.totalVolume || 0) > (s1.totalVolume || 0))) {
+            winner = s2;
+            loser = s1;
+            winnerSets = sets2;
+            loserSets = sets1;
+          }
+
+          // Transfer any unique completed sets from loser to winner
+          const winnerKeySet = new Set(winnerSets.map((s) => `${s.exerciseId}-${s.setNumber}`));
+          for (const lSet of loserSets) {
+            const key = `${lSet.exerciseId}-${lSet.setNumber}`;
+            if (!winnerKeySet.has(key)) {
+              await db.setLogs.update(lSet.id, { sessionId: winner.id });
+              winnerKeySet.add(key);
+            } else {
+              await db.setLogs.delete(lSet.id);
+            }
+          }
+
+          processedSessionIds.add(loser.id);
+          sessionIdsToDelete.push(loser.id);
+
+          // Update winner totalVolume
+          const finalSets = await db.setLogs.where("sessionId").equals(winner.id).toArray();
+          const newVol = finalSets
+            .filter((s) => s.isCompleted)
+            .reduce((sum, s) => sum + s.weight * s.reps, 0);
+          await db.workoutSessions.update(winner.id, { totalVolume: Math.round(newVol) });
+
+          // Queue cloud deletion for duplicate session
+          await enqueueSyncMutation("workoutSession", loser.id, "DELETE", { id: loser.id });
+        }
+      }
+      processedSessionIds.add(s1.id);
+    }
+
+    if (sessionIdsToDelete.length > 0) {
+      console.log(`[Dexie Deduplication] Purging ${sessionIdsToDelete.length} duplicate workout sessions`);
+      await db.workoutSessions.where("id").anyOf(sessionIdsToDelete).delete();
+    }
+  } catch (err) {
+    console.error("[Dexie] Error during deduplication:", err);
   }
 }
 
@@ -756,6 +927,7 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
 export async function createCustomRoutine(name: string, exerciseIds: string[]): Promise<LocalRoutine> {
   const routineId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `routine-${Date.now()}`;
   const nowIso = new Date().toISOString();
+  const uniqueExerciseIds = Array.from(new Set(exerciseIds));
 
   const routine: LocalRoutine = {
     id: routineId,
@@ -766,9 +938,8 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
   };
 
   await db.routines.put(routine);
-  await enqueueSyncMutation("routine", routineId, "UPSERT", routine as unknown as Record<string, unknown>);
 
-  const items: LocalRoutineItem[] = exerciseIds.map((exId, idx) => ({
+  const items: LocalRoutineItem[] = uniqueExerciseIds.map((exId, idx) => ({
     id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${idx}`,
     routineId,
     exerciseId: exId,
@@ -778,6 +949,7 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
   }));
 
   await db.routineItems.bulkPut(items);
+  await enqueueSyncMutation("routine", routineId, "UPSERT", { ...routine, items } as unknown as Record<string, unknown>);
 
   return routine;
 }
@@ -791,10 +963,12 @@ export async function updateRoutine(
   exerciseIds: string[]
 ): Promise<void> {
   const nowIso = new Date().toISOString();
+  const uniqueExerciseIds = Array.from(new Set(exerciseIds));
+
   await db.routines.update(routineId, { name, updatedAt: nowIso });
   await db.routineItems.where("routineId").equals(routineId).delete();
 
-  const items: LocalRoutineItem[] = exerciseIds.map((exId, idx) => ({
+  const items: LocalRoutineItem[] = uniqueExerciseIds.map((exId, idx) => ({
     id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${idx}`,
     routineId,
     exerciseId: exId,
@@ -804,7 +978,7 @@ export async function updateRoutine(
   }));
 
   await db.routineItems.bulkPut(items);
-  await enqueueSyncMutation("routine", routineId, "UPSERT", { id: routineId, name, updatedAt: nowIso });
+  await enqueueSyncMutation("routine", routineId, "UPSERT", { id: routineId, name, updatedAt: nowIso, items } as unknown as Record<string, unknown>);
 }
 
 /**
@@ -1030,8 +1204,343 @@ if (typeof window !== "undefined") {
       .where("status")
       .equals("FAILED")
       .modify({ status: "PENDING" })
-      .then(() => processSyncQueue());
+      .then(() => fullBiDirectionalSync());
   });
+}
+
+/**
+ * Pull cloud user data from /api/workouts/sync into local Dexie IndexedDB
+ */
+export async function pullSyncFromServer(): Promise<{
+  success: boolean;
+  pulledSessions: number;
+  pulledRoutines: number;
+}> {
+  if (typeof window === "undefined" || !navigator.onLine) {
+    return { success: false, pulledSessions: 0, pulledRoutines: 0 };
+  }
+
+  try {
+    const res = await fetch("/api/workouts/sync", {
+      method: "GET",
+      headers: { "Cache-Control": "no-cache" },
+    });
+
+    if (res.status === 401) {
+      // User is not logged in on cloud, skip pull
+      return { success: false, pulledSessions: 0, pulledRoutines: 0 };
+    }
+
+    if (!res.ok) {
+      console.warn("[Dexie Sync] Pull failed with status:", res.status);
+      return { success: false, pulledSessions: 0, pulledRoutines: 0 };
+    }
+
+    const data = await res.json();
+    if (!data.success) {
+      return { success: false, pulledSessions: 0, pulledRoutines: 0 };
+    }
+
+    const { sessions, routines, customExercises, bodyWeights } = data;
+
+    // 1. Merge custom exercises
+    if (Array.isArray(customExercises) && customExercises.length > 0) {
+      await db.exercises.bulkPut(customExercises);
+    }
+
+    // 2. Merge routines & routine items (with deduplication)
+    let pulledRoutinesCount = 0;
+    if (Array.isArray(routines)) {
+      for (const r of routines) {
+        await db.routines.put({
+          id: r.id,
+          name: r.name,
+          userId: r.userId || null,
+          createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : new Date().toISOString(),
+        });
+
+        if (Array.isArray(r.items)) {
+          // Delete old items for this routine
+          await db.routineItems.where("routineId").equals(r.id).delete();
+
+          // Deduplicate items by exerciseId
+          const seenEx = new Set<string>();
+          const cleanItems: LocalRoutineItem[] = [];
+          for (const item of r.items) {
+            if (!seenEx.has(item.exerciseId)) {
+              seenEx.add(item.exerciseId);
+              cleanItems.push({
+                id: item.id || `ri-${r.id}-${cleanItems.length}`,
+                routineId: r.id,
+                exerciseId: item.exerciseId,
+                orderIndex: cleanItems.length + 1,
+                targetSets: item.targetSets || 3,
+                restSeconds: item.restSeconds || 90,
+              });
+            }
+          }
+          await db.routineItems.bulkPut(cleanItems);
+        }
+        pulledRoutinesCount++;
+      }
+    }
+
+    // 3. Merge sessions and sets (with deduplication)
+    let pulledSessionsCount = 0;
+    if (Array.isArray(sessions)) {
+      for (const s of sessions) {
+        await db.workoutSessions.put({
+          id: s.id,
+          userId: s.userId || null,
+          routineId: s.routineId || null,
+          title: s.title,
+          startTime: new Date(s.startTime).toISOString(),
+          endTime: s.endTime ? new Date(s.endTime).toISOString() : null,
+          durationSec: s.durationSec || 0,
+          totalVolume: s.totalVolume || 0,
+          status: s.status || "COMPLETED",
+          createdAt: s.createdAt ? new Date(s.createdAt).toISOString() : new Date().toISOString(),
+          updatedAt: s.updatedAt ? new Date(s.updatedAt).toISOString() : new Date().toISOString(),
+        });
+
+        if (Array.isArray(s.sets)) {
+          // Deduplicate incoming sets by (exerciseId, setNumber)
+          const seenKey = new Set<string>();
+          const cleanSets: LocalSetLog[] = [];
+          for (const st of s.sets) {
+            const key = `${st.exerciseId}-${st.setNumber}`;
+            if (!seenKey.has(key)) {
+              seenKey.add(key);
+              cleanSets.push({
+                id: st.id,
+                sessionId: s.id,
+                exerciseId: st.exerciseId,
+                setNumber: st.setNumber,
+                weight: st.weight,
+                reps: st.reps,
+                rpe: st.rpe ?? null,
+                setType: st.setType || "NORMAL",
+                isCompleted: Boolean(st.isCompleted),
+                isPR: Boolean(st.isPR),
+                createdAt: st.createdAt ? new Date(st.createdAt).toISOString() : new Date().toISOString(),
+                updatedAt: st.updatedAt ? new Date(st.updatedAt).toISOString() : new Date().toISOString(),
+              });
+            }
+          }
+          await db.setLogs.bulkPut(cleanSets);
+        }
+        pulledSessionsCount++;
+      }
+    }
+
+    // 4. Merge body weights
+    if (Array.isArray(bodyWeights) && bodyWeights.length > 0) {
+      const cleanWeights: LocalBodyWeightLog[] = bodyWeights.map((bw: {
+        id: string;
+        userId?: string | null;
+        weight: number;
+        unit?: string;
+        date: string;
+        note?: string | null;
+        createdAt?: string;
+        updatedAt?: string;
+      }) => ({
+        id: bw.id,
+        userId: bw.userId || null,
+        weight: bw.weight,
+        unit: bw.unit || "kg",
+        date: bw.date,
+        note: bw.note || null,
+        createdAt: bw.createdAt ? new Date(bw.createdAt).toISOString() : new Date().toISOString(),
+        updatedAt: bw.updatedAt ? new Date(bw.updatedAt).toISOString() : new Date().toISOString(),
+      }));
+      await db.bodyWeightLogs.bulkPut(cleanWeights);
+    }
+
+    return {
+      success: true,
+      pulledSessions: pulledSessionsCount,
+      pulledRoutines: pulledRoutinesCount,
+    };
+  } catch (err) {
+    console.error("[Dexie Sync] Error pulling from server:", err);
+    return { success: false, pulledSessions: 0, pulledRoutines: 0 };
+  }
+}
+
+/**
+ * Assign authenticated userId to existing local offline records and queue sync
+ */
+export async function claimLocalDataForUser(userId: string): Promise<void> {
+  if (!userId || typeof window === "undefined") return;
+
+  try {
+    // 1. Claim sessions
+    const unownedSessions = await db.workoutSessions.filter((s) => !s.userId || s.userId !== userId).toArray();
+    for (const s of unownedSessions) {
+      const updated = { ...s, userId };
+      await db.workoutSessions.put(updated);
+      await enqueueSyncMutation("workoutSession", s.id, "UPSERT", updated as unknown as Record<string, unknown>);
+    }
+
+    // 2. Claim routines
+    const unownedRoutines = await db.routines.filter((r) => !r.userId || r.userId !== userId).toArray();
+    for (const r of unownedRoutines) {
+      const items = await db.routineItems.where("routineId").equals(r.id).toArray();
+      const updated = { ...r, userId };
+      await db.routines.put(updated);
+      await enqueueSyncMutation("routine", r.id, "UPSERT", { ...updated, items } as unknown as Record<string, unknown>);
+    }
+
+    // 3. Claim body weights
+    const unownedWeights = await db.bodyWeightLogs.filter((w) => !w.userId || w.userId !== userId).toArray();
+    for (const w of unownedWeights) {
+      const updated = { ...w, userId };
+      await db.bodyWeightLogs.put(updated);
+      await enqueueSyncMutation("bodyWeight", w.id, "UPSERT", updated as unknown as Record<string, unknown>);
+    }
+  } catch (err) {
+    console.error("[Dexie Sync] Error claiming local data for user:", err);
+  }
+}
+
+/**
+ * Perform a full bi-directional sync (claim data + push outbox + pull remote data + deduplicate)
+ */
+export async function fullBiDirectionalSync(userId?: string): Promise<{
+  success: boolean;
+  pushedCount: number;
+  pulledSessions: number;
+  pulledRoutines: number;
+}> {
+  if (typeof window === "undefined" || !navigator.onLine) {
+    return { success: false, pushedCount: 0, pulledSessions: 0, pulledRoutines: 0 };
+  }
+
+  try {
+    if (userId) {
+      await claimLocalDataForUser(userId);
+    }
+
+    // 1. Push pending local mutations to cloud
+    const pushResult = await processSyncQueue();
+
+    // 2. Pull remote records from cloud
+    const pullResult = await pullSyncFromServer();
+
+    // 3. Deduplicate in case of duplicate data
+    await deduplicateDatabaseRecords();
+
+    return {
+      success: true,
+      pushedCount: pushResult.processedCount || 0,
+      pulledSessions: pullResult.pulledSessions || 0,
+      pulledRoutines: pullResult.pulledRoutines || 0,
+    };
+  } catch (err) {
+    console.error("[Dexie Sync] Error in full bi-directional sync:", err);
+    return { success: false, pushedCount: 0, pulledSessions: 0, pulledRoutines: 0 };
+  }
+}
+
+export interface EditSetInput {
+  id?: string;
+  exerciseId: string;
+  setNumber: number;
+  weight: number;
+  reps: number;
+  rpe?: number | null;
+  setType: SetType;
+  isCompleted: boolean;
+}
+
+export interface EditSessionInput {
+  id: string;
+  title: string;
+  startTime: string;
+  durationSec: number;
+  sets: EditSetInput[];
+}
+
+/**
+ * Edit a previous workout session, its sets, and exercises, with full validation and cloud sync
+ */
+export async function updateWorkoutSessionWithSets(input: EditSessionInput): Promise<LocalWorkoutSession> {
+  const existingSession = await db.workoutSessions.get(input.id);
+  if (!existingSession) throw new Error("Workout session not found");
+
+  const nowIso = new Date().toISOString();
+
+  // 1. Fetch old sets
+  const oldSets = await db.setLogs.where("sessionId").equals(input.id).toArray();
+  const oldSetIds = oldSets.map((s) => s.id);
+
+  // 2. Calculate volume from completed sets & build new set logs
+  let totalVolume = 0;
+  const newSets: LocalSetLog[] = [];
+
+  for (const s of input.sets) {
+    const setId = s.id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `set-${Date.now()}-${Math.random()}`);
+    if (s.isCompleted) {
+      totalVolume += s.weight * s.reps;
+    }
+
+    const setLog: LocalSetLog = {
+      id: setId,
+      sessionId: input.id,
+      exerciseId: s.exerciseId,
+      setNumber: s.setNumber,
+      weight: s.weight,
+      reps: s.reps,
+      rpe: s.rpe ?? 8,
+      setType: s.setType,
+      isCompleted: s.isCompleted,
+      isPR: false,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    };
+    newSets.push(setLog);
+  }
+
+  // 3. Clear old sets and put new sets into Dexie
+  await db.setLogs.where("id").anyOf(oldSetIds).delete();
+  if (newSets.length > 0) {
+    await db.setLogs.bulkPut(newSets);
+  }
+
+  // 4. Update session in Dexie
+  const updatedSession: LocalWorkoutSession = {
+    ...existingSession,
+    title: input.title.trim(),
+    startTime: input.startTime,
+    durationSec: input.durationSec,
+    totalVolume: Math.round(totalVolume),
+    updatedAt: nowIso,
+  };
+
+  await db.workoutSessions.put(updatedSession);
+
+  // 5. Enqueue sync mutations for cloud
+  const newSetIds = new Set(newSets.map((s) => s.id));
+  for (const oldId of oldSetIds) {
+    if (!newSetIds.has(oldId)) {
+      await enqueueSyncMutation("setLog", oldId, "DELETE", { id: oldId });
+    }
+  }
+
+  for (const ns of newSets) {
+    await enqueueSyncMutation("setLog", ns.id, "UPSERT", ns as unknown as Record<string, unknown>);
+  }
+
+  await enqueueSyncMutation("workoutSession", updatedSession.id, "UPSERT", updatedSession as unknown as Record<string, unknown>);
+
+  // Trigger sync queue flush if online
+  if (typeof window !== "undefined" && navigator.onLine) {
+    void processSyncQueue();
+  }
+
+  return updatedSession;
 }
 
 /**

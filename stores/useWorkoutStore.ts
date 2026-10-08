@@ -206,9 +206,17 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const groups: ExerciseGroup[] = [];
     const baseTimeMs = Date.now();
 
+    // Ensure initial exercises are unique by id to prevent duplicate sets
+    const seenInitialEx = new Set<string>();
+    const uniqueInitialExercises = initialExercises.filter((ex) => {
+      if (seenInitialEx.has(ex.id)) return false;
+      seenInitialEx.add(ex.id);
+      return true;
+    });
+
     // If initial exercises provided, populate with default sets (1 set for cardio, 3 for lifting)
-    for (let exIdx = 0; exIdx < initialExercises.length; exIdx++) {
-      const ex = initialExercises[exIdx];
+    for (let exIdx = 0; exIdx < uniqueInitialExercises.length; exIdx++) {
+      const ex = uniqueInitialExercises[exIdx];
       const isCardio =
         ex.category === "CARDIO" ||
         ex.primaryMuscle?.toLowerCase() === "cardio" ||

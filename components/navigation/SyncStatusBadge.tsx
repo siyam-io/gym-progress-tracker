@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { Cloud, CloudOff, RefreshCw, Check } from "lucide-react";
-import { db, processSyncQueue } from "@/lib/db/dexie";
+import { db, fullBiDirectionalSync } from "@/lib/db/dexie";
 import { toast } from "@/stores/useToastStore";
 
 export function SyncStatusBadge() {
@@ -54,8 +54,11 @@ export function SyncStatusBadge() {
 
     setIsSyncing(true);
     try {
-      await processSyncQueue();
+      const res = await fullBiDirectionalSync();
       await checkStatus();
+      if (res.success) {
+        toast.success("Data synced with cloud!");
+      }
     } catch {
       // Background retry silently
     } finally {

@@ -19,6 +19,7 @@ import {
   Activity,
   CalendarDays,
   ListFilter,
+  Pencil,
 } from "lucide-react";
 import {
   db,
@@ -26,8 +27,11 @@ import {
   initializeLocalDb,
   deleteWorkoutSession,
   LocalExercise,
+  getSessionDetail,
+  SessionDetailData,
 } from "@/lib/db/dexie";
 import { SessionDetailModal } from "@/components/history/SessionDetailModal";
+import { EditWorkoutSessionModal } from "@/components/history/EditWorkoutSessionModal";
 import { BackupModal } from "@/components/history/BackupModal";
 import { HistoryCardSkeleton } from "@/components/ui/Skeleton";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
@@ -80,6 +84,7 @@ export default function HistoryPage() {
 
   // Modals & Dialogs
   const [inspectingSessionId, setInspectingSessionId] = useState<string | null>(null);
+  const [editingSessionData, setEditingSessionData] = useState<SessionDetailData | null>(null);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<WorkoutHistoryItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -172,7 +177,31 @@ export default function HistoryPage() {
 
   useEffect(() => {
     void loadHistory();
+
+    const handleDataSynced = () => {
+      void loadHistory();
+    };
+
+    window.addEventListener("pulse-data-synced", handleDataSynced);
+    return () => {
+      window.removeEventListener("pulse-data-synced", handleDataSynced);
+    };
   }, [loadHistory]);
+
+  const handleDirectEdit = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const detail = await getSessionDetail(sessionId);
+      if (detail) {
+        setEditingSessionData(detail);
+      } else {
+        toast.error("Could not load workout details");
+      }
+    } catch (err) {
+      console.error("Failed to load session for editing:", err);
+      toast.error("Failed to load workout details");
+    }
+  };
 
   // Execute deletion with optimistic UI update
   const confirmDeleteSession = async () => {
@@ -821,6 +850,16 @@ export default function HistoryPage() {
                       </div>
                     )}
 
+                    {/* Direct Edit Trigger Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => void handleDirectEdit(item.id, e)}
+                      className="p-1.5 rounded-lg text-zinc-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      title="Edit workout details and sets"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+
                     {/* Direct Delete Trigger Button */}
                     <button
                       type="button"
@@ -887,6 +926,15 @@ export default function HistoryPage() {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={(e) => void handleDirectEdit(item.id, e)}
+                      className="px-2.5 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 hover:text-emerald-400 text-[11px] font-bold flex items-center gap-1 transition-colors active:scale-95"
+                      title="Edit workout details and sets"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      <span>Edit</span>
+                    </button>
                     <button
                       type="button"
                       onClick={(e) => void handleRepeatWorkout(item, e)}
@@ -958,7 +1006,18 @@ export default function HistoryPage() {
         sessionId={inspectingSessionId}
         onClose={() => setInspectingSessionId(null)}
         onDeleted={() => void loadHistory()}
+        onUpdated={() => void loadHistory()}
       />
+
+      {/* Direct Workout Session Edit Modal */}
+      {editingSessionData && (
+        <EditWorkoutSessionModal
+          sessionData={editingSessionData}
+          isOpen={!!editingSessionData}
+          onClose={() => setEditingSessionData(null)}
+          onSaved={() => void loadHistory()}
+        />
+      )}
 
       {/* Data Backup / Export Modal */}
       <BackupModal

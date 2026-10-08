@@ -13,15 +13,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user?.id) {
-        token.sub = user.id;
+        token.userId = user.id;
+      }
+      if (!token.userId && token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+          select: { id: true },
+        });
+        if (dbUser) {
+          token.userId = dbUser.id;
+        }
       }
       return token;
     },
-    session({ session, token }) {
-      if (session.user && token.sub) {
-        session.user.id = token.sub;
+    async session({ session, token }) {
+      if (session.user) {
+        const resolvedId = (token.userId as string) || token.sub || session.user.id;
+        session.user.id = resolvedId;
       }
       return session;
     },

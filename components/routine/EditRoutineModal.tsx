@@ -72,7 +72,15 @@ export function EditRoutineModal({
   useEffect(() => {
     if (!isOpen || !routine) return;
     setName(routine.name);
-    setSelectedExercises(routine.items.map((i) => i.exercise));
+    const seen = new Set<string>();
+    const cleanExercises = routine.items
+      .map((i) => i.exercise)
+      .filter((ex) => {
+        if (!ex || seen.has(ex.id)) return false;
+        seen.add(ex.id);
+        return true;
+      });
+    setSelectedExercises(cleanExercises);
     setShowAddSection(false);
     setEditingExerciseId(null);
     setIsSwapping(false);

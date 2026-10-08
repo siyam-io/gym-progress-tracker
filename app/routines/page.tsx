@@ -165,10 +165,26 @@ export default function RoutinesPage() {
 
   useEffect(() => {
     void loadRoutines();
+
+    const handleSync = () => {
+      void loadRoutines();
+    };
+
+    window.addEventListener("pulse-data-synced", handleSync);
+    return () => {
+      window.removeEventListener("pulse-data-synced", handleSync);
+    };
   }, [loadRoutines]);
 
   const handleStartRoutine = async (routine: RoutineWithExercises) => {
-    const exercises = routine.items.map((i) => i.exercise);
+    const seen = new Set<string>();
+    const exercises = routine.items
+      .map((i) => i.exercise)
+      .filter((ex) => {
+        if (!ex || seen.has(ex.id)) return false;
+        seen.add(ex.id);
+        return true;
+      });
     await startWorkout(routine.name, exercises, routine.id);
     router.push("/workout/active");
   };

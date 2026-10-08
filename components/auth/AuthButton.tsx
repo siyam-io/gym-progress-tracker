@@ -3,19 +3,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { LogOut, X, ShieldCheck, ChevronDown, User } from "lucide-react";
+import { LogOut, X, ShieldCheck, ChevronDown, User, RefreshCw } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import { PulseLogo } from "@/components/ui/Logo";
+import { fullBiDirectionalSync } from "@/lib/db/dexie";
+import { toast } from "@/stores/useToastStore";
 
 export function AuthButton() {
   const { data: session, status } = useSession();
   const { setCurrentUserId } = useWorkoutStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (session?.user?.id) {
       setCurrentUserId(session.user.id);
+      void fullBiDirectionalSync(session.user.id);
     } else {
       setCurrentUserId(null);
     }
@@ -185,15 +189,39 @@ export function AuthButton() {
             Workouts, custom routines, and PR records sync to your account and back up in local Dexie IndexedDB.
           </p>
 
-          {/* Sign Out CTA */}
-          <div className="pt-1">
+          {/* Actions */}
+          <div className="pt-1 space-y-2">
+            <button
+              type="button"
+              disabled={isManualSyncing}
+              onClick={async () => {
+                setIsManualSyncing(true);
+                try {
+                  const res = await fullBiDirectionalSync(session?.user?.id);
+                  if (res.success) {
+                    toast.success(`Cloud synced! ${res.pulledSessions} sessions & ${res.pulledRoutines} routines verified.`);
+                  } else {
+                    toast.error("Sync failed or offline.");
+                  }
+                } catch {
+                  toast.error("Failed to sync cloud data.");
+                } finally {
+                  setIsManualSyncing(false);
+                }
+              }}
+              className="w-full py-2.5 min-h-[40px] rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing ? "animate-spin" : ""}`} />
+              <span>{isManualSyncing ? "Syncing with Cloud..." : "Sync Cloud Data Now"}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setIsOpen(false);
                 signOut();
               }}
-              className="w-full py-2.5 min-h-[42px] rounded-xl bg-zinc-950 border border-red-500/30 hover:bg-red-950/40 text-red-400 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
+              className="w-full py-2.5 min-h-[40px] rounded-xl bg-zinc-950 border border-red-500/30 hover:bg-red-950/40 text-red-400 font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all shadow-sm"
             >
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>
