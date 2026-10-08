@@ -9,9 +9,9 @@ import {
 } from "@/types/workout";
 import { OutboxSyncItem } from "@/types/sync";
 import { DEFAULT_EXERCISES } from "@/lib/db/seeds/exercises";
-import { DEFAULT_ROUTINES, DEFAULT_ROUTINE_ITEMS } from "@/lib/db/seeds/routines";
 import { deduplicateDatabaseRecords } from "@/lib/db/deduplication";
 import { clearLocalUserData } from "@/lib/db/repositories/workout-repository";
+import { ensureSystemRoutines } from "@/lib/db/repositories/routine-repository";
 
 /**
  * Dexie schema definition for local client-side IndexedDB database.
@@ -77,25 +77,8 @@ export async function initializeLocalDb(): Promise<void> {
     console.warn("[Dexie] Could not load extended exercise dataset:", err);
   }
 
-  // 3. Ensure Day 01, Day 02, Day 03 routines are active
-  const ROUTINE_VERSION_KEY = "pulse_routines_v5_day01_day02_day03";
-  const migrated = localStorage.getItem(ROUTINE_VERSION_KEY);
-  if (!migrated) {
-    await db.routineItems.clear();
-    await db.routines.clear();
-    await db.routines.bulkPut(DEFAULT_ROUTINES);
-    await db.routineItems.bulkPut(DEFAULT_ROUTINE_ITEMS);
-    localStorage.setItem(ROUTINE_VERSION_KEY, "true");
-  } else {
-    for (const r of DEFAULT_ROUTINES) {
-      const existing = await db.routines.get(r.id);
-      if (!existing) {
-        await db.routines.put(r);
-        const routineDefaultItems = DEFAULT_ROUTINE_ITEMS.filter((ri) => ri.routineId === r.id);
-        await db.routineItems.bulkPut(routineDefaultItems);
-      }
-    }
-  }
+  // 3. Ensure Day 01, Day 02, Day 03 built-in routines are active and self-healed
+  await ensureSystemRoutines();
 
   // 4. Clean up any duplicate records
   await deduplicateDatabaseRecords();

@@ -8,6 +8,12 @@ import {
   BodyWeightSchema,
 } from "@/lib/validations/sync-schema";
 
+export const SYSTEM_ROUTINE_IDS = new Set([
+  "routine-day-1",
+  "routine-day-2",
+  "routine-day-3",
+]);
+
 /**
  * Resolves the true PostgreSQL User UUID, handling Google providerAccountId sub or email mismatch
  */
@@ -56,7 +62,13 @@ export async function fetchUserSyncData(userId: string) {
       orderBy: { startTime: "desc" },
     }),
     prisma.routine.findMany({
-      where: { userId },
+      where: {
+        OR: [
+          { userId },
+          { userId: null },
+          { id: { in: Array.from(SYSTEM_ROUTINE_IDS) } },
+        ],
+      },
       include: {
         items: {
           orderBy: { orderIndex: "asc" },
@@ -154,8 +166,18 @@ export async function processServerMutations(
         } else if (entityType === "setLog") {
           await prisma.setLog.delete({ where: { id: entityId } }).catch(() => null);
         } else if (entityType === "routine") {
+          // Guard: Never allow deleting system default routines
+          if (SYSTEM_ROUTINE_IDS.has(entityId)) {
+            syncedIds.push(mutation.id);
+            continue;
+          }
           await prisma.routineItem.deleteMany({ where: { routineId: entityId } }).catch(() => null);
-          await prisma.routine.delete({ where: { id: entityId } }).catch(() => null);
+          await prisma.routine.deleteMany({
+            where: {
+              id: entityId,
+              ...(authenticatedUserId ? { userId: authenticatedUserId } : {}),
+            },
+          }).catch(() => null);
         } else if (entityType === "exercise") {
           await prisma.exercise.delete({ where: { id: entityId } }).catch(() => null);
         } else if (entityType === "bodyWeight" || entityType === "bodyWeightLog") {
@@ -275,6 +297,22 @@ export async function processServerMutations(
           continue;
         }
         const data = parsed.data;
+
+        // Guard: Never allow overriding system default routines!
+        if (SYSTEM_ROUTINE_IDS.has(data.id)) {
+          syncedIds.push(mutation.id);
+          continue;
+        }
+
+        // Check ownership: Reject if owned by another user
+        if (authenticatedUserId) {
+          const existing = await prisma.routine.findUnique({ where: { id: data.id } }).catch(() => null);
+          if (existing && existing.userId && existing.userId !== authenticatedUserId) {
+            console.warn(`[Sync Service] User ${authenticatedUserId} attempted to modify routine ${data.id} owned by ${existing.userId}`);
+            syncedIds.push(mutation.id);
+            continue;
+          }
+        }
 
         await prisma.routine.upsert({
           where: { id: data.id },

@@ -10,6 +10,19 @@ import {
   DEFAULT_ROUTINE_ITEMS,
 } from "@/lib/db/seeds/routines";
 
+export const SYSTEM_ROUTINE_IDS = new Set([
+  "routine-day-1",
+  "routine-day-2",
+  "routine-day-3",
+]);
+
+/**
+ * Returns true if the routine ID belongs to a permanent built-in default routine
+ */
+export function isSystemRoutine(routineId: string): boolean {
+  return SYSTEM_ROUTINE_IDS.has(routineId);
+}
+
 /**
  * Fetch routines along with their mapped exercise details and last completed dates
  */
@@ -29,6 +42,7 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
   const results: RoutineWithExercises[] = [];
 
   for (const routine of routines) {
+    const isSys = isSystemRoutine(routine.id) || routine.isSystem === true;
     const rItems = allItems
       .filter((i) => i.routineId === routine.id)
       .sort((a, b) => a.orderIndex - b.orderIndex)
@@ -58,6 +72,7 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
 
     results.push({
       ...routine,
+      isSystem: isSys,
       items: rItems,
       targetMuscles: muscles,
       estimatedDurationMin,
@@ -80,6 +95,7 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
     id: routineId,
     name,
     userId: null,
+    isSystem: false,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -102,13 +118,72 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
 }
 
 /**
- * Update an existing routine (rename, reorder, or update exercises)
+ * Clone an existing routine (system or custom) into a new, independent custom routine.
+ * Guarantees that built-in routines remain immutable and unmutated.
+ */
+export async function cloneRoutineAsCustom(
+  sourceRoutineId: string,
+  customName?: string,
+  overrideExerciseIds?: string[]
+): Promise<LocalRoutine> {
+  const sourceRoutine = await db.routines.get(sourceRoutineId);
+  const nowIso = new Date().toISOString();
+  const newRoutineId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `routine-${Date.now()}`;
+
+  let finalExerciseIds: string[] = [];
+  if (overrideExerciseIds && overrideExerciseIds.length > 0) {
+    finalExerciseIds = Array.from(new Set(overrideExerciseIds));
+  } else {
+    const existingItems = await db.routineItems
+      .where("routineId")
+      .equals(sourceRoutineId)
+      .sortBy("orderIndex");
+    finalExerciseIds = existingItems.map((i) => i.exerciseId);
+  }
+
+  const baseName = customName?.trim() || (sourceRoutine ? `${sourceRoutine.name} (Custom)` : "Custom Routine");
+
+  const newRoutine: LocalRoutine = {
+    id: newRoutineId,
+    name: baseName,
+    userId: null,
+    isSystem: false,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  };
+
+  await db.routines.put(newRoutine);
+
+  const items: LocalRoutineItem[] = finalExerciseIds.map((exId, idx) => ({
+    id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${idx}`,
+    routineId: newRoutineId,
+    exerciseId: exId,
+    orderIndex: idx + 1,
+    targetSets: 3,
+    restSeconds: 90,
+  }));
+
+  await db.routineItems.bulkPut(items);
+  await enqueueSyncMutation("routine", newRoutineId, "UPSERT", { ...newRoutine, items } as unknown as Record<string, unknown>);
+
+  return newRoutine;
+}
+
+/**
+ * Update an existing routine (rename, reorder, or update exercises).
+ * If called on a system default routine, automatically performs Copy-on-Write
+ * to produce a separate custom routine without modifying the global default.
  */
 export async function updateRoutine(
   routineId: string,
   name: string,
   exerciseIds: string[]
-): Promise<void> {
+): Promise<LocalRoutine | void> {
+  // Copy-on-Write guard for system default routines
+  if (isSystemRoutine(routineId)) {
+    return await cloneRoutineAsCustom(routineId, name, exerciseIds);
+  }
+
   const nowIso = new Date().toISOString();
   const uniqueExerciseIds = Array.from(new Set(exerciseIds));
 
@@ -129,9 +204,15 @@ export async function updateRoutine(
 }
 
 /**
- * Delete a routine and all its routine items from Dexie
+ * Delete a routine and all its routine items from Dexie.
+ * Blocks attempts to delete system default routines.
  */
 export async function deleteRoutine(routineId: string): Promise<void> {
+  if (isSystemRoutine(routineId)) {
+    console.warn(`[Routine Repository] Blocked attempt to delete system routine: ${routineId}`);
+    throw new Error("Default system routines cannot be deleted.");
+  }
+
   await db.routineItems.where("routineId").equals(routineId).delete();
   await db.routines.delete(routineId);
   await enqueueSyncMutation("routine", routineId, "DELETE", { id: routineId });
@@ -160,6 +241,23 @@ export async function addExerciseToRoutine(routineId: string, exerciseId: string
  */
 export async function removeExerciseFromRoutine(itemId: string): Promise<void> {
   await db.routineItems.delete(itemId);
+}
+
+/**
+ * Ensures system default routines (Day 01, Day 02, Day 03) exist and remain pristine.
+ */
+export async function ensureSystemRoutines(): Promise<void> {
+  for (const defRoutine of DEFAULT_ROUTINES) {
+    const existing = await db.routines.get(defRoutine.id);
+    if (!existing || existing.name !== defRoutine.name) {
+      await db.routines.put({ ...defRoutine, isSystem: true });
+    }
+    const existingItemsCount = await db.routineItems.where("routineId").equals(defRoutine.id).count();
+    if (existingItemsCount === 0) {
+      const defItems = DEFAULT_ROUTINE_ITEMS.filter((i) => i.routineId === defRoutine.id);
+      await db.routineItems.bulkPut(defItems);
+    }
+  }
 }
 
 /**

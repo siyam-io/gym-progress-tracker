@@ -12,6 +12,7 @@ import {
   Layers,
   Pencil,
   ArrowLeftRight,
+  Sparkles,
 } from "lucide-react";
 import {
   db,
@@ -70,7 +71,7 @@ export function EditRoutineModal({
   // React recommended pattern: Adjust state when prop changes during render
   if (routine && routine.id !== prevRoutineId) {
     setPrevRoutineId(routine.id);
-    setName(routine.name);
+    setName(routine.isSystem ? `${routine.name} (Custom)` : routine.name);
     const seen = new Set<string>();
     const cleanExercises = routine.items
       .map((i) => i.exercise)
@@ -218,7 +219,11 @@ export function EditRoutineModal({
         name.trim(),
         selectedExercises.map((e) => e.id)
       );
-      toast.success("Routine updated successfully!");
+      if (routine.isSystem) {
+        toast.success(`Saved as personal routine "${name.trim()}"!`);
+      } else {
+        toast.success("Routine updated successfully!");
+      }
       onRoutineUpdated();
       onClose();
     } catch (err) {
@@ -249,10 +254,12 @@ export function EditRoutineModal({
             </div>
             <div>
               <h2 className="text-base font-black text-zinc-100 tracking-tight leading-none">
-                Edit Routine
+                {routine?.isSystem ? "Customize Built-in Routine" : "Edit Routine"}
               </h2>
               <span className="text-xs text-zinc-400 mt-0.5 block">
-                Customize exercises, sequence, and routine name
+                {routine?.isSystem
+                  ? "Saves as your personal custom routine without modifying the default"
+                  : "Customize exercises, sequence, and routine name"}
               </span>
             </div>
           </div>
@@ -264,6 +271,16 @@ export function EditRoutineModal({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Built-in default notice banner */}
+        {routine?.isSystem && (
+          <div className="mx-4 sm:mx-5 mt-3 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-800/60 text-cyan-300 text-xs flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span>
+              <strong>Built-in Routine:</strong> This default split is protected for all lifters. Saving here will clone it as your personal custom routine.
+            </span>
+          </div>
+        )}
 
         {/* Content Body */}
         <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
@@ -642,7 +659,13 @@ export function EditRoutineModal({
               className="flex-1 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-zinc-950 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-1.5"
             >
               <Check className="w-4 h-4 stroke-[2.5]" />
-              <span>{isSaving ? "Saving..." : "Save Routine"}</span>
+              <span>
+                {isSaving
+                  ? "Saving..."
+                  : routine?.isSystem
+                  ? "Save as Custom Routine"
+                  : "Save Changes"}
+              </span>
             </button>
           </div>
         </form>

@@ -15,6 +15,7 @@ import {
   Dumbbell,
   ChevronDown,
   ChevronUp,
+  Copy,
 } from "lucide-react";
 import {
   initializeLocalDb,
@@ -22,6 +23,7 @@ import {
   RoutineWithExercises,
   deleteRoutine,
   createCustomRoutine,
+  cloneRoutineAsCustom,
   DEFAULT_EXERCISES,
 } from "@/lib/db/dexie";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
@@ -200,6 +202,17 @@ export default function RoutinesPage() {
     }
   };
 
+  const handleDuplicateRoutine = async (routine: RoutineWithExercises) => {
+    try {
+      const cloned = await cloneRoutineAsCustom(routine.id, `${routine.name} (Copy)`);
+      toast.success(`Duplicated as "${cloned.name}"!`);
+      await loadRoutines();
+    } catch (err) {
+      console.error("Failed to duplicate routine:", err);
+      toast.error("Failed to duplicate routine.");
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!routineToDelete) return;
     try {
@@ -208,7 +221,7 @@ export default function RoutinesPage() {
       await loadRoutines();
     } catch (err) {
       console.error("Failed to delete routine:", err);
-      toast.error("Failed to delete routine.");
+      toast.error(err instanceof Error ? err.message : "Failed to delete routine.");
     }
   };
 
@@ -310,9 +323,16 @@ export default function RoutinesPage() {
                     {/* Top Header of Card */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-extrabold text-base text-zinc-100 tracking-tight truncate">
-                          {routine.name}
-                        </h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-extrabold text-base text-zinc-100 tracking-tight truncate">
+                            {routine.name}
+                          </h3>
+                          {routine.isSystem && (
+                            <span className="px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/35 text-cyan-400 font-extrabold text-[10px] tracking-wide uppercase shadow-sm">
+                              Default
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-2 mt-1 text-xs text-zinc-400 font-medium">
                           <span className="flex items-center gap-1 text-emerald-400 font-mono">
                             <Dumbbell className="w-3.5 h-3.5" />
@@ -326,27 +346,38 @@ export default function RoutinesPage() {
                         </div>
                       </div>
 
-                      {/* Edit & Delete Action Buttons */}
+                      {/* Duplicate, Edit & Delete Action Buttons */}
                       <div className="flex items-center gap-1 shrink-0">
                         <button
                           type="button"
-                          onClick={() => setEditingRoutine(routine)}
-                          className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-emerald-400 flex items-center justify-center transition-colors"
-                          title="Edit Routine"
+                          onClick={() => handleDuplicateRoutine(routine)}
+                          className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-cyan-400 flex items-center justify-center transition-colors"
+                          title="Duplicate as Custom Routine"
                         >
-                          <Pencil className="w-3.5 h-3.5" />
+                          <Copy className="w-3.5 h-3.5" />
                         </button>
 
                         <button
                           type="button"
-                          onClick={() =>
-                            setRoutineToDelete({ id: routine.id, name: routine.name })
-                          }
-                          className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-red-500/40 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-colors"
-                          title="Delete Routine"
+                          onClick={() => setEditingRoutine(routine)}
+                          className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-emerald-400 flex items-center justify-center transition-colors"
+                          title={routine.isSystem ? "Customize Routine" : "Edit Routine"}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
+
+                        {!routine.isSystem && (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRoutineToDelete({ id: routine.id, name: routine.name })
+                            }
+                            className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-red-500/40 text-zinc-400 hover:text-red-400 flex items-center justify-center transition-colors"
+                            title="Delete Routine"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
 
