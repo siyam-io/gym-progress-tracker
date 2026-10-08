@@ -7,16 +7,9 @@ import {
   ShieldCheck,
   Zap,
   Dumbbell,
-  Heart,
   TrendingUp,
   Cpu,
-  Flame,
-  Award,
-  Users,
   Compass,
-  CheckCircle2,
-  ChevronRight,
-  Sparkles,
 } from "lucide-react";
 import { SiteHeader } from "@/components/navigation/SiteHeader";
 import { PulseLogo } from "@/components/ui/Logo";

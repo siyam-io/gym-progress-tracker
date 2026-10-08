@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Play,
-  Plus,
   Flame,
   Clock,
   ChevronRight,
@@ -15,7 +14,6 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronUp,
-  Activity,
   Sparkles,
   Info,
   Mail,
@@ -38,7 +36,6 @@ import { SyncStatusBadge } from "@/components/navigation/SyncStatusBadge";
 import { RoutineCardSkeleton } from "@/components/ui/Skeleton";
 import { PulseLogo } from "@/components/ui/Logo";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
-import { toast } from "@/stores/useToastStore";
 
 export default function HomeDashboard() {
   const router = useRouter();
@@ -49,16 +46,22 @@ export default function HomeDashboard() {
     days: [],
     completedCount: 0,
   });
-  const [greeting, setGreeting] = useState("Welcome back");
+  const [greeting] = useState(() => {
+    if (typeof window === "undefined") return "Welcome back";
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
   const [routineToDelete, setRoutineToDelete] = useState<{ id: string; name: string } | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (showLoader = false) => {
     try {
-      setIsLoading(true);
+      if (showLoader) setIsLoading(true);
       await initializeLocalDb();
       const [fetchedRoutines, streak] = await Promise.all([
         getRoutinesWithExercises(),
@@ -74,13 +77,13 @@ export default function HomeDashboard() {
   }, []);
 
   useEffect(() => {
-    void loadData();
-
-    // Set contextual greeting based on local time
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 17) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) void loadData();
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [loadData]);
 
   const handleStartRoutine = async (routine: RoutineWithExercises) => {

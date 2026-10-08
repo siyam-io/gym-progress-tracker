@@ -1,26 +1,21 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   X,
-  Calendar,
-  Clock,
   Dumbbell,
   Trophy,
-  Flame,
   Trash2,
-  Play,
   RotateCcw,
-  Sparkles,
   Pencil,
 } from "lucide-react";
 import {
   getSessionDetail,
   deleteWorkoutSession,
   SessionDetailData,
-  LocalSetLog,
   SetType,
+  isCardioExercise,
 } from "@/lib/db/dexie";
 import { calculate1RM } from "@/lib/utils/pr-calculator";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
@@ -48,25 +43,28 @@ export function SessionDetailModal({
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  const loadDetail = (id: string) => {
-    setIsLoading(true);
-    void getSessionDetail(id).then((res) => {
+  const loadDetail = useCallback(async (id: string) => {
+    try {
+      setIsLoading(true);
+      const res = await getSessionDetail(id);
       setData(res);
+    } finally {
       setIsLoading(false);
-    });
-  };
+    }
+  }, []);
 
   useEffect(() => {
-    if (!sessionId) {
-      setData(null);
-      setShowConfirmDelete(false);
-      setShowEditModal(false);
-      return;
-    }
-
-    setShowConfirmDelete(false);
-    setShowEditModal(false);
-    loadDetail(sessionId);
+    if (!sessionId) return;
+    let cancelled = false;
+    getSessionDetail(sessionId).then((res) => {
+      if (!cancelled) {
+        setData(res);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [sessionId]);
 
   if (!sessionId) return null;
@@ -217,72 +215,105 @@ export function SessionDetailModal({
                   Exercise Breakdown ({data.exerciseGroups.length})
                 </span>
 
-                {data.exerciseGroups.map((group) => (
-                  <div
-                    key={group.exercise.id}
-                    className="bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3.5 space-y-2.5"
-                  >
-                    <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800/60">
-                      <div>
-                        <h3 className="font-bold text-xs text-zinc-200">{group.exercise.name}</h3>
-                        <span className="text-[10px] text-zinc-500">
-                          {group.exercise.category} •{" "}
-                          <span className="text-emerald-400">{group.exercise.primaryMuscle}</span>
+                {data.exerciseGroups.map((group) => {
+                  const isCardio = isCardioExercise(group.exercise);
+
+                  return (
+                    <div
+                      key={group.exercise.id}
+                      className="bg-zinc-950/70 border border-zinc-800/80 rounded-2xl p-3.5 space-y-2.5"
+                    >
+                      <div className="flex items-center justify-between pb-1.5 border-b border-zinc-800/60">
+                        <div>
+                          <h3 className="font-bold text-xs text-zinc-200">{group.exercise.name}</h3>
+                          <span className="text-[10px] text-zinc-500">
+                            {isCardio ? (
+                              <span className="text-cyan-400 font-semibold">Cardio Movement</span>
+                            ) : (
+                              <>
+                                {group.exercise.category} •{" "}
+                                <span className="text-emerald-400">{group.exercise.primaryMuscle}</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        <span className="text-[10px] font-mono text-zinc-400">
+                          {group.sets.length} sets
                         </span>
                       </div>
-                      <span className="text-[10px] font-mono text-zinc-400">
-                        {group.sets.length} sets
-                      </span>
-                    </div>
 
-                    {/* Sets Table */}
-                    <div className="space-y-1.5">
-                      <div className="grid grid-cols-[30px_60px_1fr_60px_36px] gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500 px-1">
-                        <span>Set</span>
-                        <span>Type</span>
-                        <span>Weight × Reps</span>
-                        <span className="text-right">e1RM</span>
-                        <span className="text-center">PR</span>
-                      </div>
-
-                      {group.sets.map((s) => {
-                        const badge = setTypeBadges[s.setType] || setTypeBadges.NORMAL;
-                        const e1rm = calculate1RM(s.weight, s.reps);
-
-                        return (
-                          <div
-                            key={s.id}
-                            className={`grid grid-cols-[30px_60px_1fr_60px_36px] gap-1 items-center px-2 py-1.5 rounded-lg text-xs font-mono ${
-                              s.isPR
-                                ? "bg-amber-500/10 border border-amber-500/20 text-zinc-200"
-                                : "bg-zinc-900/60 text-zinc-300"
-                            }`}
-                          >
-                            <span className="text-zinc-500 font-bold">{s.setNumber}</span>
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold text-center ${badge.color}`}
-                            >
-                              {badge.label}
-                            </span>
-                            <span className="font-semibold text-zinc-100">
-                              {s.weight}kg × {s.reps}
-                            </span>
-                            <span className="text-right font-medium text-emerald-400">
-                              {e1rm}kg
-                            </span>
-                            <span className="flex items-center justify-center">
-                              {s.isPR ? (
-                                <Trophy className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                              ) : (
-                                <span className="text-zinc-600">—</span>
-                              )}
-                            </span>
+                      {/* Sets Table */}
+                      <div className="space-y-1.5">
+                        {isCardio ? (
+                          <div className="grid grid-cols-[30px_60px_1fr_60px_36px] gap-1 text-[9px] font-bold uppercase tracking-wider text-cyan-400/80 px-1">
+                            <span>Round</span>
+                            <span>Type</span>
+                            <span>Time • Dist • Resist</span>
+                            <span className="text-right">Pace</span>
+                            <span className="text-center">PR</span>
                           </div>
-                        );
-                      })}
+                        ) : (
+                          <div className="grid grid-cols-[30px_60px_1fr_60px_36px] gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500 px-1">
+                            <span>Set</span>
+                            <span>Type</span>
+                            <span>Weight × Reps</span>
+                            <span className="text-right">e1RM</span>
+                            <span className="text-center">PR</span>
+                          </div>
+                        )}
+
+                        {group.sets.map((s) => {
+                          const badge = setTypeBadges[s.setType] || setTypeBadges.NORMAL;
+                          const e1rm = calculate1RM(s.weight, s.reps);
+                          const pace =
+                            s.weight > 0 && s.reps > 0
+                              ? `${(s.reps / s.weight).toFixed(1)}m/k`
+                              : "—";
+
+                          return (
+                            <div
+                              key={s.id}
+                              className={`grid grid-cols-[30px_60px_1fr_60px_36px] gap-1 items-center px-2 py-1.5 rounded-lg text-xs font-mono ${
+                                s.isPR
+                                  ? "bg-amber-500/10 border border-amber-500/20 text-zinc-200"
+                                  : "bg-zinc-900/60 text-zinc-300"
+                              }`}
+                            >
+                              <span className="text-zinc-500 font-bold">{s.setNumber}</span>
+                              <span
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-sans font-semibold text-center ${badge.color}`}
+                              >
+                                {badge.label}
+                              </span>
+
+                              {isCardio ? (
+                                <span className="font-semibold text-zinc-100 truncate text-[11px]">
+                                  {s.reps}m • {s.weight}km{s.rpe ? ` • L${s.rpe}` : ""}
+                                </span>
+                              ) : (
+                                <span className="font-semibold text-zinc-100">
+                                  {s.weight}kg × {s.reps}
+                                </span>
+                              )}
+
+                              <span className="text-right font-medium text-emerald-400">
+                                {isCardio ? pace : `${e1rm}kg`}
+                              </span>
+
+                              <span className="flex items-center justify-center">
+                                {s.isPR ? (
+                                  <Trophy className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                                ) : (
+                                  <span className="text-zinc-600">—</span>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

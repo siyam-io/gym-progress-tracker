@@ -91,7 +91,7 @@ self.addEventListener("fetch", (event) => {
             cache.put(request, networkResponse.clone()).catch(() => {});
           }
           return networkResponse;
-        } catch (fetchErr) {
+        } catch {
           // Fallback if offline and not in cache
           const cached = await cache.match(request).catch(() => null);
           return (

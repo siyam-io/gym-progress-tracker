@@ -7,7 +7,7 @@ import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 interface LiveSetRowProps {
   exerciseId: string;
-  exerciseName: string;
+  exerciseName?: string;
   setLog: LocalSetLog;
   ghostData?: { weight: number; reps: number };
   onDelete?: () => void;
@@ -15,7 +15,6 @@ interface LiveSetRowProps {
 
 export function LiveSetRow({
   exerciseId,
-  exerciseName: _exerciseName,
   setLog,
   ghostData,
 }: LiveSetRowProps) {
@@ -61,110 +60,97 @@ export function LiveSetRow({
         </div>
       )}
 
-      {/* Main Set Row Grid */}
-      <div className="flex items-center justify-between p-3 gap-2 min-h-[58px]">
-        {/* Set Number & Type Trigger */}
+      {/* Main Set Row Grid - Strict Single-Line Alignment */}
+      <div className="grid grid-cols-[32px_56px_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-2 min-h-[48px]">
+        {/* 1. Set Number & Type Trigger */}
         <button
           type="button"
           onClick={() => setShowStepperDrawer((prev) => !prev)}
-          className={`w-9 h-9 min-w-9 rounded-lg flex items-center justify-center font-bold text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
           title="Change Set Type & Adjustments"
         >
           {currentBadge.label}
         </button>
 
-        {/* Ghost History Indicator */}
-        <div className="flex flex-col min-w-[70px] text-left">
-          <span className="text-[10px] uppercase font-semibold tracking-wider text-zinc-500">
-            Previous
-          </span>
-          <span className="text-xs font-mono font-medium text-zinc-400">
-            {ghostData ? `${ghostData.weight}kg × ${ghostData.reps}` : "—"}
+        {/* 2. Ghost Previous Indicator */}
+        <div className="text-center truncate px-0.5" title={ghostData ? `${ghostData.weight}kg × ${ghostData.reps}` : "No previous data"}>
+          <span className="text-[11px] font-mono font-medium text-zinc-400">
+            {ghostData ? `${ghostData.weight}k × ${ghostData.reps}` : "—"}
           </span>
         </div>
 
-        {/* Weight Interactive Box */}
-        <div className="flex-1 flex flex-col items-center">
-          <span className="text-[10px] uppercase font-semibold tracking-wider text-zinc-500 mb-0.5">
-            Weight (kg)
-          </span>
-          <div className="flex items-center gap-1 bg-zinc-950/60 border border-zinc-800 rounded-lg px-2 py-1 w-full max-w-[90px] justify-between focus-within:border-emerald-500">
-            <input
-              type="number"
-              step="0.5"
-              inputMode="decimal"
-              value={setLog.weight === 0 ? "" : setLog.weight}
-              placeholder={ghostData ? `${ghostData.weight}` : "0"}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : val });
-              }}
-              className="w-full text-center bg-transparent text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
+        {/* 3. Weight Input */}
+        <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1.5 h-9 focus-within:border-emerald-500 transition-colors">
+          <input
+            type="number"
+            step="0.5"
+            inputMode="decimal"
+            value={setLog.weight === 0 ? "" : setLog.weight}
+            placeholder={ghostData ? `${ghostData.weight}` : "0"}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : val });
+            }}
+            className="w-full text-center bg-transparent text-xs sm:text-sm font-semibold font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
         </div>
 
-        {/* Reps Interactive Box */}
-        <div className="flex-1 flex flex-col items-center">
-          <span className="text-[10px] uppercase font-semibold tracking-wider text-zinc-500 mb-0.5">
-            Reps
-          </span>
-          <div className="flex items-center gap-1 bg-zinc-950/60 border border-zinc-800 rounded-lg px-2 py-1 w-full max-w-[80px] justify-between focus-within:border-emerald-500">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={setLog.reps === 0 ? "" : setLog.reps}
-              placeholder={ghostData ? `${ghostData.reps}` : "0"}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : val });
-              }}
-              className="w-full text-center bg-transparent text-sm font-semibold text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
+        {/* 4. Reps Input */}
+        <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1.5 h-9 focus-within:border-emerald-500 transition-colors">
+          <input
+            type="number"
+            inputMode="numeric"
+            value={setLog.reps === 0 ? "" : setLog.reps}
+            placeholder={ghostData ? `${ghostData.reps}` : "0"}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : val });
+            }}
+            className="w-full text-center bg-transparent text-xs sm:text-sm font-semibold font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
         </div>
 
-        {/* Quick Stepper Drawer Toggle Button */}
+        {/* 5. Quick Stepper Drawer Toggle Button */}
         <button
           type="button"
           onClick={() => setShowStepperDrawer((prev) => !prev)}
-          className={`w-9 h-9 min-w-9 rounded-lg flex items-center justify-center border transition-colors ${
+          className={`w-7 h-8 rounded-lg flex items-center justify-center border transition-colors ${
             showStepperDrawer
               ? "bg-zinc-800 border-zinc-600 text-zinc-200"
-              : "bg-zinc-950 border-zinc-800 text-zinc-400 hover:text-zinc-200"
+              : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-200"
           }`}
           title="Quick Steppers for Gym Floor"
         >
           <ChevronDown
-            className={`w-4 h-4 transition-transform duration-200 ${
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
               showStepperDrawer ? "rotate-180 text-emerald-400" : ""
             }`}
           />
         </button>
 
-        {/* Completed Checkmark Toggle (Touch-friendly 44x44px target) */}
+        {/* 6. Completed Checkmark Toggle */}
         <button
           type="button"
           onClick={() => void toggleSetCompleted(exerciseId, setLog.id)}
-          className={`w-11 h-11 min-w-11 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 ${
+          className={`w-9 h-8 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
             setLog.isCompleted
-              ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/30 scale-100"
+              ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/30 font-bold"
               : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-zinc-700/60"
           }`}
           title={setLog.isCompleted ? "Set Completed" : "Mark Set Complete"}
         >
           <Check
-            className={`w-5 h-5 stroke-[3] transition-transform ${
+            className={`w-4 h-4 stroke-[3] transition-transform ${
               setLog.isCompleted ? "scale-110" : ""
             }`}
           />
         </button>
 
-        {/* Delete Set Button */}
+        {/* 7. Delete Set Button */}
         <button
           type="button"
           onClick={() => void removeSet(exerciseId, setLog.id)}
-          className="w-8 h-11 min-w-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
+          className="w-6 h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
           title="Delete this set"
         >
           <Trash2 className="w-3.5 h-3.5" />

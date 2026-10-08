@@ -11,14 +11,13 @@ import {
   WifiOff,
   Trash2,
   Trophy,
-  Flame,
   Disc3,
   Share2,
-  ChevronLeft,
   ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
-import { initializeLocalDb, DEFAULT_EXERCISES, processSyncQueue, LocalExercise } from "@/lib/db/dexie";
+import { initializeLocalDb, processSyncQueue, LocalExercise, isCardioExercise } from "@/lib/db/dexie";
 import { LiveSetRow } from "@/components/workout/LiveSetRow";
 import { CardioSetRow } from "@/components/workout/CardioSetRow";
 import { RestTimerBar } from "@/components/workout/RestTimerBar";
@@ -26,24 +25,8 @@ import { AddExerciseModal } from "@/components/workout/AddExerciseModal";
 import { ExerciseThumbnail } from "@/components/exercises/ExerciseThumbnail";
 import { AnatomicalFormModal } from "@/components/exercises/AnatomicalFormModal";
 import { PlateCalculatorModal } from "@/components/workout/PlateCalculatorModal";
-import { PulseLogo } from "@/components/ui/Logo";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { toast } from "@/stores/useToastStore";
-
-const isCardioExercise = (ex: LocalExercise) => {
-  if (ex.category === "CARDIO") return true;
-  if (ex.primaryMuscle?.toLowerCase() === "cardio") return true;
-  const name = ex.name.toLowerCase();
-  return (
-    name.includes("warm up") ||
-    name.includes("treadmill") ||
-    name.includes("cross train") ||
-    name.includes("cycle") ||
-    name.includes("jump rope") ||
-    name.includes("rowing") ||
-    name.includes("stair")
-  );
-};
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
@@ -53,15 +36,17 @@ export default function ActiveWorkoutPage() {
     workoutElapsedSec,
     isLoading,
     initializeOrRestore,
-    startWorkout,
     incrementWorkoutElapsed,
     finishWorkout,
     discardWorkout,
     addSet,
     removeExercise,
+    moveExercise,
   } = useWorkoutStore();
 
-  const [isOnline, setIsOnline] = useState(true);
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [showPlateCalculator, setShowPlateCalculator] = useState(false);
@@ -81,7 +66,6 @@ export default function ActiveWorkoutPage() {
     });
 
     if (typeof window !== "undefined") {
-      setIsOnline(navigator.onLine);
       const handleOnline = () => setIsOnline(true);
       const handleOffline = () => setIsOnline(false);
       window.addEventListener("online", handleOnline);
@@ -343,7 +327,7 @@ export default function ActiveWorkoutPage() {
             </button>
           </div>
         ) : (
-          exerciseGroups.map((group) => {
+          exerciseGroups.map((group, exGroupIdx) => {
             const isCardio = isCardioExercise(group.exercise);
 
             return (
@@ -356,7 +340,7 @@ export default function ActiveWorkoutPage() {
                 }`}
               >
                 {/* Exercise Header */}
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-800/80 gap-2">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <ExerciseThumbnail
                       imageUrl={group.exercise.imageUrl}
@@ -384,30 +368,57 @@ export default function ActiveWorkoutPage() {
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => void removeExercise(group.exercise.id)}
-                    className="w-8 h-8 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 flex items-center justify-center transition-colors shrink-0"
-                    title="Remove Exercise"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Header Actions: Reorder Movement Earlier/Later & Delete */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <div className="flex items-center bg-zinc-950/80 border border-zinc-800 rounded-lg p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => void moveExercise(group.exercise.id, "up")}
+                        disabled={exGroupIdx === 0}
+                        className="w-7 h-7 rounded flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 disabled:opacity-20 disabled:hover:text-zinc-400 disabled:hover:bg-transparent transition-all"
+                        title="Move movement earlier (swap with above)"
+                      >
+                        <ChevronUp className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void moveExercise(group.exercise.id, "down")}
+                        disabled={exGroupIdx === exerciseGroups.length - 1}
+                        className="w-7 h-7 rounded flex items-center justify-center text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800 disabled:opacity-20 disabled:hover:text-zinc-400 disabled:hover:bg-transparent transition-all"
+                        title="Move movement later (swap with below)"
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => void removeExercise(group.exercise.id)}
+                      className="w-8 h-8 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 flex items-center justify-center transition-colors shrink-0"
+                      title="Remove Exercise"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
-                {/* Sets Header Labels */}
+                {/* Sets Header Labels - 100% Matching Grid Template with Rows */}
                 {isCardio ? (
-                  <div className="flex items-center justify-between px-3.5 text-[10px] font-bold uppercase tracking-wider text-cyan-400/80">
-                    <span className="w-9 text-center">Round</span>
-                    <span className="min-w-[70px]">Prev</span>
-                    <span className="flex-1 max-w-[100px] text-center">Time (m)</span>
-                    <span className="flex-1 max-w-[100px] text-center">Dist (km)</span>
-                    <span className="w-[74px] text-center">Done</span>
+                  <div className="grid grid-cols-[30px_52px_1fr_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-cyan-400/80">
+                    <span className="text-center">Rnd</span>
+                    <span className="text-center">Prev</span>
+                    <span className="text-center">Time</span>
+                    <span className="text-center">Dist</span>
+                    <span className="text-center text-purple-400">Resist</span>
+                    <span className="text-center">Step</span>
+                    <span className="text-center">Done</span>
+                    <span></span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-[36px_70px_1fr_1fr_36px_44px_32px] gap-2 px-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                    <span>Set</span>
-                    <span>Prev</span>
-                    <span className="text-center">kg</span>
+                  <div className="grid grid-cols-[32px_56px_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                    <span className="text-center">Set</span>
+                    <span className="text-center">Prev</span>
+                    <span className="text-center">Weight</span>
                     <span className="text-center">Reps</span>
                     <span className="text-center">Step</span>
                     <span className="text-center">Done</span>

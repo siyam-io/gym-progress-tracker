@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Timer, X, Plus, Minus, BellRing } from "lucide-react";
+import { Timer, X, Plus, Minus } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 export function RestTimerBar() {

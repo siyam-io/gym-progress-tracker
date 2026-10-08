@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { X, Download, Upload, ShieldCheck, AlertCircle, Check, FileSpreadsheet, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { X, Download, Upload, ShieldCheck, FileSpreadsheet, Trash2 } from "lucide-react";
 import { exportAllDataAsJson, importDataFromJson, clearLocalUserData } from "@/lib/db/dexie";
 import { exportWorkoutsToCsv, exportBodyWeightToCsv } from "@/lib/utils/export-csv";
 import { toast } from "@/stores/useToastStore";
@@ -13,6 +13,15 @@ interface BackupModalProps {
 export function BackupModal({ isOpen, onClose, onDataRestored }: BackupModalProps) {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -117,14 +126,6 @@ export function BackupModal({ isOpen, onClose, onDataRestored }: BackupModalProp
     }
   };
 
-  React.useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
 
   return (
     <div

@@ -1,21 +1,21 @@
 "use client";
 
 import React, { useState } from "react";
-import { Check, Timer, MapPin, Plus, Minus, Flame, Heart, Trash2 } from "lucide-react";
+import { Check, Trash2, ChevronDown, Minus, Plus, Timer, MapPin, Activity } from "lucide-react";
 import { LocalSetLog } from "@/lib/db/dexie";
+import { SetType } from "@/types/workout";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 interface CardioSetRowProps {
   exerciseId: string;
-  exerciseName: string;
+  exerciseName?: string;
   setLog: LocalSetLog;
-  ghostData?: { weight: number; reps: number };
+  ghostData?: { weight: number; reps: number; rpe?: number | null };
   onDelete?: () => void;
 }
 
 export function CardioSetRow({
   exerciseId,
-  exerciseName: _exerciseName,
   setLog,
   ghostData,
 }: CardioSetRowProps) {
@@ -24,18 +24,52 @@ export function CardioSetRow({
 
   // Time in minutes is stored in setLog.reps (default 10)
   // Distance in km is stored in setLog.weight (default 1.0)
+  // Resistance / Level / Incline is stored in setLog.rpe (default 1)
   const durationMins = setLog.reps || 10;
   const distanceKm = setLog.weight || 1.0;
+  const resistanceLevel = setLog.rpe !== null && setLog.rpe !== undefined ? setLog.rpe : 1;
 
   const handleTimeDelta = (delta: number) => {
     const nextTime = Math.max(1, durationMins + delta);
     void updateSet(exerciseId, setLog.id, { reps: nextTime });
   };
 
+  const setDuration = (mins: number) => {
+    void updateSet(exerciseId, setLog.id, { reps: Math.max(1, mins) });
+  };
+
   const handleDistanceDelta = (delta: number) => {
     const nextDist = Math.max(0, Math.round((distanceKm + delta) * 10) / 10);
     void updateSet(exerciseId, setLog.id, { weight: nextDist });
   };
+
+  const setDistance = (dist: number) => {
+    void updateSet(exerciseId, setLog.id, { weight: Math.max(0, dist) });
+  };
+
+  const handleResistanceDelta = (delta: number) => {
+    const nextRes = Math.max(0, Math.round((resistanceLevel + delta) * 10) / 10);
+    void updateSet(exerciseId, setLog.id, { rpe: nextRes });
+  };
+
+  const setResistance = (res: number) => {
+    void updateSet(exerciseId, setLog.id, { rpe: Math.max(0, res) });
+  };
+
+  const handleSetTypeChange = (type: SetType) => {
+    void updateSet(exerciseId, setLog.id, { setType: type });
+  };
+
+  const setTypeLabels: Record<SetType, { label: string; bg: string; text: string }> = {
+    NORMAL: { label: `${setLog.setNumber}`, bg: "bg-cyan-500/10 border-cyan-500/30", text: "text-cyan-400" },
+    WARMUP: { label: "W", bg: "bg-amber-500/10 border-amber-500/30", text: "text-amber-400" },
+    DROPSET: { label: "I", bg: "bg-purple-500/10 border-purple-500/30", text: "text-purple-400" },
+    FAILURE: { label: "MAX", bg: "bg-red-500/10 border-red-500/30", text: "text-red-400" },
+  };
+
+  const currentBadge = setLog.isCompleted
+    ? { label: `${setLog.setNumber}`, bg: "bg-emerald-500/20 border-emerald-500/40", text: "text-emerald-400" }
+    : (setTypeLabels[setLog.setType as SetType] || setTypeLabels.NORMAL);
 
   return (
     <div
@@ -45,165 +79,328 @@ export function CardioSetRow({
           : "bg-zinc-900/90 border-zinc-800/80 hover:border-zinc-700/80"
       }`}
     >
-      {/* Cardio Set Row Main Header & Inputs */}
-      <div className="flex items-center justify-between p-3.5 gap-2.5">
-        {/* Interval / Round Index */}
+      {/* Cardio Set Row Main Grid - Strict Single-Line Alignment */}
+      <div className="grid grid-cols-[30px_52px_1fr_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-2 min-h-[48px]">
+        {/* 1. Interval / Round Index */}
         <button
           type="button"
           onClick={() => setShowSteppers((prev) => !prev)}
-          className={`w-9 h-9 min-w-9 rounded-xl flex items-center justify-center font-bold text-xs border transition-colors ${
-            setLog.isCompleted
-              ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-400"
-              : "bg-cyan-500/10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20"
+          className={`w-7.5 h-8 min-w-[30px] rounded-lg flex items-center justify-center font-bold text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
+          title="Toggle Quick Steppers & Phase"
+        >
+          {currentBadge.label}
+        </button>
+
+        {/* 2. Ghost History Indicator for Cardio */}
+        <div
+          className="text-center truncate px-0.5"
+          title={ghostData ? `${ghostData.reps}m • ${ghostData.weight}km • L${ghostData.rpe || 1}` : "No previous data"}
+        >
+          <span className="text-[10px] font-mono text-zinc-400 font-semibold">
+            {ghostData ? `${ghostData.reps}m•${ghostData.weight}k` : "—"}
+          </span>
+        </div>
+
+        {/* 3. Duration / Minutes Input */}
+        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-cyan-500 rounded-lg px-1 h-9 transition-colors">
+          <input
+            type="number"
+            inputMode="numeric"
+            value={durationMins || ""}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : Math.max(0, val) });
+            }}
+            className="w-full text-center bg-transparent font-mono font-bold text-xs sm:text-sm text-cyan-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            placeholder="10"
+          />
+        </div>
+
+        {/* 4. Distance / Km Input */}
+        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-emerald-500 rounded-lg px-1 h-9 transition-colors">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            value={distanceKm || ""}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : Math.max(0, val) });
+            }}
+            className="w-full text-center bg-transparent font-mono font-bold text-xs sm:text-sm text-emerald-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            placeholder="1.0"
+          />
+        </div>
+
+        {/* 5. Resistance / Level Input */}
+        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-purple-500 rounded-lg px-1 h-9 transition-colors">
+          <input
+            type="number"
+            inputMode="decimal"
+            step="1"
+            value={resistanceLevel ?? ""}
+            onChange={(e) => {
+              const val = parseFloat(e.target.value);
+              void updateSet(exerciseId, setLog.id, { rpe: isNaN(val) ? 0 : Math.max(0, val) });
+            }}
+            className="w-full text-center bg-transparent font-mono font-bold text-xs sm:text-sm text-purple-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            placeholder="1"
+          />
+        </div>
+
+        {/* 6. Quick Stepper Drawer Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setShowSteppers((prev) => !prev)}
+          className={`w-7 h-8 rounded-lg flex items-center justify-center border transition-colors ${
+            showSteppers
+              ? "bg-zinc-800 border-zinc-600 text-zinc-200"
+              : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-200"
           }`}
           title="Toggle Quick Steppers"
         >
-          {setLog.setNumber}
+          <ChevronDown
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${
+              showSteppers ? "rotate-180 text-cyan-400" : ""
+            }`}
+          />
         </button>
 
-        {/* Ghost History Indicator for Cardio */}
-        <div className="flex flex-col min-w-[70px] text-left">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-500 flex items-center gap-1">
-            <Heart className="w-2.5 h-2.5 text-rose-400/80" />
-            Prev
-          </span>
-          <span className="text-xs font-mono text-zinc-400 font-semibold truncate">
-            {ghostData ? `${ghostData.reps}m • ${ghostData.weight}km` : "—"}
-          </span>
-        </div>
+        {/* 7. Completed Checkmark Toggle */}
+        <button
+          type="button"
+          onClick={() => void toggleSetCompleted(exerciseId, setLog.id)}
+          className={`w-9 h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+            setLog.isCompleted
+              ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-md shadow-emerald-500/20 font-bold"
+              : "bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+          }`}
+          title={setLog.isCompleted ? "Completed" : "Mark Set Done"}
+        >
+          <Check className={`w-4 h-4 ${setLog.isCompleted ? "stroke-[3]" : "stroke-[2]"}`} />
+        </button>
 
-        {/* Duration / Minutes Input */}
-        <div className="flex flex-col items-center flex-1 max-w-[100px]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-400/90 flex items-center gap-1">
-            <Timer className="w-3 h-3 text-cyan-400" />
-            Time (m)
-          </span>
-          <div className="flex items-center gap-1 mt-1 w-full justify-center">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={durationMins || ""}
-              onChange={(e) => {
-                const val = parseInt(e.target.value, 10);
-                void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : Math.max(0, val) });
-              }}
-              className="w-14 h-9 bg-zinc-950 border border-zinc-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 rounded-lg text-center font-mono font-bold text-sm text-zinc-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              placeholder="10"
-            />
-          </div>
-        </div>
-
-        {/* Distance / Km Input */}
-        <div className="flex flex-col items-center flex-1 max-w-[100px]">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400/90 flex items-center gap-1">
-            <MapPin className="w-3 h-3 text-emerald-400" />
-            Dist (km)
-          </span>
-          <div className="flex items-center gap-1 mt-1 w-full justify-center">
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              value={distanceKm || ""}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : Math.max(0, val) });
-              }}
-              className="w-14 h-9 bg-zinc-950 border border-zinc-800 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-lg text-center font-mono font-bold text-sm text-zinc-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              placeholder="1.0"
-            />
-          </div>
-        </div>
-
-        {/* Actions: Complete & Delete */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => void toggleSetCompleted(exerciseId, setLog.id)}
-            className={`w-10 h-10 min-w-10 rounded-xl flex items-center justify-center border transition-all active:scale-95 ${
-              setLog.isCompleted
-                ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-md shadow-emerald-500/20"
-                : "bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
-            }`}
-            title={setLog.isCompleted ? "Completed" : "Mark Set Done"}
-          >
-            <Check className={`w-5 h-5 ${setLog.isCompleted ? "stroke-[3]" : "stroke-[2]"}`} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => void removeSet(exerciseId, setLog.id)}
-            className="w-8 h-10 min-w-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
-            title="Delete this set"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {/* 8. Delete Set Button */}
+        <button
+          type="button"
+          onClick={() => void removeSet(exerciseId, setLog.id)}
+          className="w-6 h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
+          title="Delete this set"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Quick Adjust Stepper Drawer */}
       {showSteppers && (
-        <div className="px-3.5 pb-3 pt-1 border-t border-zinc-800/70 bg-zinc-950/60 flex flex-wrap items-center justify-between gap-2">
-          {/* Time Steppers */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase text-zinc-500 mr-1">Time:</span>
-            <button
-              type="button"
-              onClick={() => handleTimeDelta(-5)}
-              className="px-2 py-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-md text-xs font-mono font-bold text-zinc-300"
-            >
-              -5m
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTimeDelta(-1)}
-              className="px-2 py-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-md text-xs font-mono font-bold text-zinc-300"
-            >
-              -1m
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTimeDelta(1)}
-              className="px-2 py-1 bg-cyan-950/40 border border-cyan-800/60 hover:border-cyan-600 rounded-md text-xs font-mono font-bold text-cyan-300"
-            >
-              +1m
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTimeDelta(5)}
-              className="px-2 py-1 bg-cyan-950/40 border border-cyan-800/60 hover:border-cyan-600 rounded-md text-xs font-mono font-bold text-cyan-300"
-            >
-              +5m
-            </button>
+        <div className="p-3 bg-zinc-950/85 border-t border-zinc-800/60 flex flex-col gap-3 animate-in fade-in-50 duration-150">
+          {/* 1. Quick Duration (Time) */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+              <span className="flex items-center gap-1.5 text-cyan-400">
+                <Timer className="w-3.5 h-3.5" />
+                Quick Duration
+              </span>
+              <span className="font-mono text-cyan-300 font-bold">{durationMins} mins</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleTimeDelta(-5)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Minus className="w-3 h-3 text-red-400" /> 5m
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTimeDelta(-1)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Minus className="w-3 h-3 text-red-400" /> 1m
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTimeDelta(1)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Plus className="w-3 h-3 text-cyan-400" /> 1m
+              </button>
+              <button
+                type="button"
+                onClick={() => handleTimeDelta(5)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Plus className="w-3 h-3 text-cyan-400" /> 5m
+              </button>
+            </div>
+            {/* Direct Time Presets */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
+              {[5, 10, 15, 20, 30, 45].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setDuration(preset)}
+                  className={`px-2.5 py-1 min-h-[32px] rounded text-xs font-mono font-semibold transition-colors shrink-0 ${
+                    durationMins === preset
+                      ? "bg-cyan-500 text-zinc-950 font-bold shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                  }`}
+                >
+                  {preset}m
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Distance Steppers */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] font-bold uppercase text-zinc-500 mr-1">Dist:</span>
-            <button
-              type="button"
-              onClick={() => handleDistanceDelta(-0.5)}
-              className="px-2 py-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-md text-xs font-mono font-bold text-zinc-300"
-            >
-              -0.5
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDistanceDelta(0.5)}
-              className="px-2 py-1 bg-emerald-950/40 border border-emerald-800/60 hover:border-emerald-600 rounded-md text-xs font-mono font-bold text-emerald-300"
-            >
-              +0.5
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDistanceDelta(1.0)}
-              className="px-2 py-1 bg-emerald-950/40 border border-emerald-800/60 hover:border-emerald-600 rounded-md text-xs font-mono font-bold text-emerald-300"
-            >
-              +1.0
-            </button>
+          {/* 2. Quick Distance Adjustments */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+              <span className="flex items-center gap-1.5 text-emerald-400">
+                <MapPin className="w-3.5 h-3.5" />
+                Quick Distance
+              </span>
+              <span className="font-mono text-emerald-300 font-bold">{distanceKm} km</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleDistanceDelta(-1.0)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Minus className="w-3 h-3 text-red-400" /> 1.0
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDistanceDelta(-0.5)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Minus className="w-3 h-3 text-red-400" /> 0.5
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDistanceDelta(0.5)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Plus className="w-3 h-3 text-emerald-400" /> 0.5
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDistanceDelta(1.0)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Plus className="w-3 h-3 text-emerald-400" /> 1.0
+              </button>
+            </div>
+            {/* Direct Distance Presets */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
+              {[1, 2, 3, 5, 8, 10].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setDistance(preset)}
+                  className={`px-2.5 py-1 min-h-[32px] rounded text-xs font-mono font-semibold transition-colors shrink-0 ${
+                    distanceKm === preset
+                      ? "bg-emerald-500 text-zinc-950 font-bold shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                  }`}
+                >
+                  {preset}km
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 3. Quick Resistance / Incline / Level Adjustments */}
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+              <span className="flex items-center gap-1.5 text-purple-400">
+                <Activity className="w-3.5 h-3.5" />
+                Resistance / Level / Incline
+              </span>
+              <span className="font-mono text-purple-300 font-bold">L{resistanceLevel}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              <button
+                type="button"
+                onClick={() => handleResistanceDelta(-5)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Minus className="w-3 h-3 text-red-400" /> 5
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResistanceDelta(-1)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Minus className="w-3 h-3 text-red-400" /> 1
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResistanceDelta(1)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Plus className="w-3 h-3 text-purple-400" /> 1
+              </button>
+              <button
+                type="button"
+                onClick={() => handleResistanceDelta(5)}
+                className="h-10 min-h-[44px] rounded-lg bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 text-zinc-300 font-bold text-xs active:bg-zinc-700 flex items-center justify-center gap-0.5"
+              >
+                <Plus className="w-3 h-3 text-purple-400" /> 5
+              </button>
+            </div>
+            {/* Direct Level Presets */}
+            <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar">
+              {[1, 2, 4, 6, 8, 10, 12, 15].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setResistance(preset)}
+                  className={`px-2.5 py-1 min-h-[32px] rounded text-xs font-mono font-semibold transition-colors shrink-0 ${
+                    resistanceLevel === preset
+                      ? "bg-purple-500 text-zinc-950 font-bold shadow-sm"
+                      : "bg-zinc-900 border border-zinc-800/80 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700"
+                  }`}
+                >
+                  L{preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 4. Cardio Type / Phase */}
+          <div className="flex flex-col gap-1.5 pt-1 border-t border-zinc-800/60">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-zinc-400">Cardio Phase / Type</span>
+              <div className="flex items-center gap-1">
+                {(["NORMAL", "WARMUP", "DROPSET", "FAILURE"] as SetType[]).map((type) => {
+                  const typeNames: Record<SetType, string> = {
+                    NORMAL: "Steady",
+                    WARMUP: "Warm",
+                    DROPSET: "HIIT",
+                    FAILURE: "Max",
+                  };
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSetTypeChange(type)}
+                      className={`px-2 py-1 min-h-[36px] rounded text-[11px] font-semibold transition-colors ${
+                        setLog.setType === type
+                          ? "bg-cyan-500 text-zinc-950 font-bold"
+                          : "bg-zinc-900 text-zinc-400 hover:text-zinc-200"
+                      }`}
+                    >
+                      {typeNames[type]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
     </div>
   );
 }
+

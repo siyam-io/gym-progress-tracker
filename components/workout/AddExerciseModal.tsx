@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, X, Plus, Dumbbell, Filter } from "lucide-react";
+import { Search, X, Plus, Dumbbell } from "lucide-react";
 import { db, LocalExercise, ExerciseCategory } from "@/lib/db/dexie";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 

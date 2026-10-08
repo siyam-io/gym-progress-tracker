@@ -5,13 +5,9 @@ import {
   X,
   Dumbbell,
   Trophy,
-  Flame,
-  Calendar,
   Clock,
   TrendingUp,
-  Layers,
   Sparkles,
-  AlertCircle,
   Zap,
 } from "lucide-react";
 import {
@@ -34,43 +30,25 @@ export function ExerciseDetailModal({ exerciseId, exercise, onClose }: ExerciseD
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!exerciseId && !exercise) {
-      setData(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (exercise) {
-      setData({
-        exercise,
-        totalSets: 0,
-        maxWeight: 0,
-        maxReps: 0,
-        highest1RM: 0,
-        progression: [],
-        sessions: [],
-      });
-    }
-
     const targetId = exerciseId || exercise?.id;
-    if (!targetId) {
-      setIsLoading(false);
-      return;
-    }
+    if (!targetId) return;
 
-    setIsLoading(true);
-    void getExerciseDetailHistory(targetId, exercise || undefined)
+    let cancelled = false;
+    getExerciseDetailHistory(targetId, exercise || undefined)
       .then((res) => {
-        if (res) {
+        if (!cancelled && res) {
           setData(res);
+          setIsLoading(false);
         }
       })
       .catch((err) => {
         console.error("Failed to load exercise history:", err);
-      })
-      .finally(() => {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       });
+
+    return () => {
+      cancelled = true;
+    };
   }, [exerciseId, exercise]);
 
   const overloadAnalysis = useMemo(() => {

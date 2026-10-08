@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ChevronLeft,
@@ -12,14 +11,10 @@ import {
   Download,
   Layers,
   Sparkles,
-  Flame,
   Clock,
   Dumbbell,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  Activity,
-  Copy,
 } from "lucide-react";
 import {
   initializeLocalDb,
@@ -150,9 +145,9 @@ export default function RoutinesPage() {
   const [routineToDelete, setRoutineToDelete] = useState<{ id: string; name: string } | null>(null);
   const [expandedRoutineId, setExpandedRoutineId] = useState<string | null>(null);
 
-  const loadRoutines = useCallback(async () => {
+  const loadRoutines = useCallback(async (showLoader = false) => {
     try {
-      setIsLoading(true);
+      if (showLoader) setIsLoading(true);
       await initializeLocalDb();
       const fetched = await getRoutinesWithExercises();
       setRoutines(fetched);
@@ -164,14 +159,18 @@ export default function RoutinesPage() {
   }, []);
 
   useEffect(() => {
-    void loadRoutines();
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) void loadRoutines();
+    });
 
     const handleSync = () => {
-      void loadRoutines();
+      if (!cancelled) void loadRoutines();
     };
 
     window.addEventListener("pulse-data-synced", handleSync);
     return () => {
+      cancelled = true;
       window.removeEventListener("pulse-data-synced", handleSync);
     };
   }, [loadRoutines]);

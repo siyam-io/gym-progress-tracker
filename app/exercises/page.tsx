@@ -1,15 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import {
   Search,
   Plus,
   Dumbbell,
   Trophy,
-  Filter,
   ChevronRight,
   ChevronDown,
-  Layers,
   X,
 } from "lucide-react";
 import { db, LocalExercise, ExerciseCategory, initializeLocalDb } from "@/lib/db/dexie";
@@ -55,18 +53,21 @@ export default function ExercisesPage() {
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | "ALL">("ALL");
   const [visibleCount, setVisibleCount] = useState(24);
 
-  // Reset pagination on filter change
-  useEffect(() => {
+  // Reset pagination on filter change during render
+  const filterKey = `${searchQuery}|${selectedMuscle}|${selectedCategory}`;
+  const [prevFilterKey, setPrevFilterKey] = useState(filterKey);
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
     setVisibleCount(24);
-  }, [searchQuery, selectedMuscle, selectedCategory]);
+  }
 
   // Modals
   const [inspectingExerciseId, setInspectingExerciseId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (showLoader = false) => {
     try {
-      setIsLoading(true);
+      if (showLoader) setIsLoading(true);
       await initializeLocalDb();
       const [exList, sets] = await Promise.all([
         db.exercises.toArray(),
@@ -97,11 +98,17 @@ export default function ExercisesPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    void loadData();
-  }, []);
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) void loadData();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadData]);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter((ex) => {

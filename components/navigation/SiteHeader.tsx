@@ -10,10 +10,7 @@ import {
   Sparkles,
   Info,
   Mail,
-  TrendingUp,
-  Library,
   ChevronRight,
-  ShieldCheck,
   Zap,
 } from "lucide-react";
 import { PulseLogo } from "@/components/ui/Logo";

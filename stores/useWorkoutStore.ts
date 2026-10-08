@@ -8,15 +8,15 @@ import {
   SetType,
   getPreviousExerciseSets,
   enqueueSyncMutation,
+  isCardioExercise,
 } from "@/lib/db/dexie";
 import { checkIfPR } from "@/lib/utils/pr-calculator";
 import { playPRFanfare, playTimerCompleteSound, playTapSound } from "@/lib/utils/audio-feedback";
-import { toast } from "@/stores/useToastStore";
 
 export interface ExerciseGroup {
   exercise: LocalExercise;
   sets: LocalSetLog[];
-  ghostSets: Array<{ setNumber: number; weight: number; reps: number }>;
+  ghostSets: Array<{ setNumber: number; weight: number; reps: number; rpe?: number | null }>;
 }
 
 export interface RestTimerState {
@@ -52,6 +52,7 @@ export interface WorkoutStore {
   // Actions - Exercise & Sets
   addExercise: (exercise: LocalExercise) => Promise<void>;
   removeExercise: (exerciseId: string) => Promise<void>;
+  moveExercise: (exerciseId: string, direction: "up" | "down") => Promise<void>;
   addSet: (exerciseId: string, setType?: SetType) => Promise<void>;
   removeSet: (exerciseId: string, setId: string) => Promise<void>;
   updateSet: (exerciseId: string, setId: string, updates: Partial<LocalSetLog>) => Promise<void>;
@@ -217,12 +218,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     // If initial exercises provided, populate with default sets (1 set for cardio, 3 for lifting)
     for (let exIdx = 0; exIdx < uniqueInitialExercises.length; exIdx++) {
       const ex = uniqueInitialExercises[exIdx];
-      const isCardio =
-        ex.category === "CARDIO" ||
-        ex.primaryMuscle?.toLowerCase() === "cardio" ||
-        ["warm up", "treadmill", "cross train", "cycle", "jump rope", "rowing", "stair"].some((k) =>
-          ex.name.toLowerCase().includes(k)
-        );
+      const isCardio = isCardioExercise(ex);
 
       const targetSetsCount = isCardio ? 1 : 3;
       const ghostSets = await getPreviousExerciseSets(ex.id);
@@ -238,8 +234,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
           setNumber: i,
           weight: isCardio ? (ghost ? ghost.weight : 1.0) : (ghost ? ghost.weight : 20),
           reps: isCardio ? (ghost ? ghost.reps : 10) : (ghost ? ghost.reps : 10),
-          rpe: 8,
-          setType: i === 1 ? (isCardio ? "NORMAL" : "WARMUP") : "NORMAL",
+          rpe: isCardio ? (ghost?.rpe ?? 5) : 8,
+          setType: "NORMAL",
           isCompleted: false,
           isPR: false,
           createdAt: exCreatedAt,
@@ -286,13 +282,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     // Avoid duplicates
     if (exerciseGroups.some((g) => g.exercise.id === exercise.id)) return;
 
-    const isCardio =
-      exercise.category === "CARDIO" ||
-      exercise.primaryMuscle?.toLowerCase() === "cardio" ||
-      ["warm up", "treadmill", "cross train", "cycle", "jump rope", "rowing", "stair"].some((k) =>
-        exercise.name.toLowerCase().includes(k)
-      );
-
+    const isCardio = isCardioExercise(exercise);
     const targetSetsCount = isCardio ? 1 : 3;
     const ghostSets = await getPreviousExerciseSets(exercise.id);
     const nowIso = new Date().toISOString();
@@ -307,8 +297,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         setNumber: i,
         weight: isCardio ? (ghost ? ghost.weight : 1.0) : (ghost ? ghost.weight : 20),
         reps: isCardio ? (ghost ? ghost.reps : 10) : (ghost ? ghost.reps : 10),
-        rpe: 8,
-        setType: i === 1 ? (isCardio ? "NORMAL" : "WARMUP") : "NORMAL",
+        rpe: isCardio ? (ghost?.rpe ?? 5) : 8,
+        setType: "NORMAL",
         isCompleted: false,
         isPR: false,
         createdAt: nowIso,
@@ -354,6 +344,38 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     });
   },
 
+  moveExercise: async (exerciseId: string, direction: "up" | "down") => {
+    const { session, exerciseGroups } = get();
+    if (!session) return;
+
+    const index = exerciseGroups.findIndex((g) => g.exercise.id === exerciseId);
+    if (index === -1) return;
+    const newIndex = direction === "up" ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= exerciseGroups.length) return;
+
+    const updated = [...exerciseGroups];
+    const [moved] = updated.splice(index, 1);
+    updated.splice(newIndex, 0, moved);
+
+    set({ exerciseGroups: updated });
+
+    try {
+      const baseTimeMs = new Date(session.startTime).getTime();
+      for (let gIdx = 0; gIdx < updated.length; gIdx++) {
+        const g = updated[gIdx];
+        for (let sIdx = 0; sIdx < g.sets.length; sIdx++) {
+          const s = g.sets[sIdx];
+          const setIso = new Date(baseTimeMs + gIdx * 60000 + sIdx * 1000).toISOString();
+          s.createdAt = setIso;
+          s.updatedAt = setIso;
+          await db.setLogs.update(s.id, { createdAt: setIso, updatedAt: setIso });
+        }
+      }
+    } catch (err) {
+      console.error("[WorkoutStore] Failed to persist exercise order:", err);
+    }
+  },
+
   addSet: async (exerciseId: string, setType: SetType = "NORMAL") => {
     const { session, exerciseGroups } = get();
     if (!session) return;
@@ -361,12 +383,14 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const group = exerciseGroups.find((g) => g.exercise.id === exerciseId);
     if (!group) return;
 
+    const isCardio = isCardioExercise(group.exercise);
     const nextSetNumber = group.sets.length + 1;
     const previousSet = group.sets[group.sets.length - 1];
     const ghost = group.ghostSets.find((g) => g.setNumber === nextSetNumber);
 
-    const defaultWeight = previousSet ? previousSet.weight : ghost ? ghost.weight : 20;
+    const defaultWeight = previousSet ? previousSet.weight : ghost ? ghost.weight : (isCardio ? 1.0 : 20);
     const defaultReps = previousSet ? previousSet.reps : ghost ? ghost.reps : 10;
+    const defaultRpe = previousSet?.rpe ?? (ghost?.rpe ?? (isCardio ? 5 : 8));
     const nowIso = new Date().toISOString();
 
     const newSetLog: LocalSetLog = {
@@ -376,7 +400,7 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       setNumber: nextSetNumber,
       weight: defaultWeight,
       reps: defaultReps,
-      rpe: 8,
+      rpe: defaultRpe,
       setType,
       isCompleted: false,
       isPR: false,

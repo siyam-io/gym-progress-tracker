@@ -54,8 +54,19 @@ export function DailyWeightCard() {
   }, []);
 
   useEffect(() => {
-    void loadWeightData();
-  }, [loadWeightData]);
+    let cancelled = false;
+    getBodyWeightStats().then((s) => {
+      if (!cancelled) {
+        setStats(s);
+        if (s.latestWeight) {
+          setInputWeight(s.latestWeight);
+        }
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const isLoggedToday = stats.latestDate === todayStr;

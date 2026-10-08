@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { LogOut, X, ShieldCheck, ChevronDown, User, RefreshCw } from "lucide-react";
+import { LogOut, X, ShieldCheck, ChevronDown, RefreshCw } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import { PulseLogo } from "@/components/ui/Logo";
 import { fullBiDirectionalSync } from "@/lib/db/dexie";

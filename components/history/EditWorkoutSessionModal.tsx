@@ -10,10 +10,10 @@ import {
   Dumbbell,
   Clock,
   Calendar,
-  Layers,
   Save,
-  Activity,
-  AlertCircle,
+  ChevronUp,
+  ChevronDown,
+  RotateCcw,
 } from "lucide-react";
 import {
   db,
@@ -22,6 +22,7 @@ import {
   SetType,
   updateWorkoutSessionWithSets,
   EditSetInput,
+  isCardioExercise,
 } from "@/lib/db/dexie";
 import { toast } from "@/stores/useToastStore";
 
@@ -38,6 +39,7 @@ interface WorkingSet {
   setNumber: number;
   weight: number;
   reps: number;
+  rpe?: number | null;
   setType: SetType;
   isCompleted: boolean;
 }
@@ -60,6 +62,7 @@ export function EditWorkoutSessionModal({
   onClose,
   onSaved,
 }: EditWorkoutSessionModalProps) {
+  const [prevSessionId, setPrevSessionId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [dateTimeLocal, setDateTimeLocal] = useState("");
   const [durationMinutes, setDurationMinutes] = useState(0);
@@ -71,12 +74,11 @@ export function EditWorkoutSessionModal({
   const [allExercises, setAllExercises] = useState<LocalExercise[]>([]);
   const [searchExerciseQuery, setSearchExerciseQuery] = useState("");
 
-  useEffect(() => {
-    if (!isOpen || !sessionData) return;
-
+  // React 19 recommended pattern: adjust state when sessionData prop changes
+  if (sessionData && sessionData.session.id !== prevSessionId) {
+    setPrevSessionId(sessionData.session.id);
     setTitle(sessionData.session.title);
 
-    // Format ISO string to YYYY-MM-DDTHH:mm for datetime-local input
     try {
       const d = new Date(sessionData.session.startTime);
       const pad = (n: number) => String(n).padStart(2, "0");
@@ -88,15 +90,15 @@ export function EditWorkoutSessionModal({
 
     setDurationMinutes(Math.max(1, Math.round((sessionData.session.durationSec || 0) / 60)));
 
-    // Load working groups
     const initialGroups: WorkingGroup[] = sessionData.exerciseGroups.map((eg) => ({
       exercise: eg.exercise,
       sets: eg.sets.map((s, idx) => ({
-        tempId: s.id || `set-${idx}-${Date.now()}`,
+        tempId: s.id || `set-${eg.exercise.id}-${idx}`,
         originalId: s.id,
         setNumber: idx + 1,
         weight: s.weight,
         reps: s.reps,
+        rpe: s.rpe ?? null,
         setType: s.setType,
         isCompleted: s.isCompleted,
       })),
@@ -105,10 +107,19 @@ export function EditWorkoutSessionModal({
     setGroups(initialGroups);
     setShowAddExerciseDrawer(false);
     setSearchExerciseQuery("");
+  }
 
+  useEffect(() => {
+    if (!isOpen || !sessionData) return;
+    let cancelled = false;
     void db.exercises.toArray().then((list) => {
-      setAllExercises(list);
+      if (!cancelled) {
+        setAllExercises(list);
+      }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, sessionData]);
 
   if (!isOpen || !sessionData) return null;
@@ -134,13 +145,15 @@ export function EditWorkoutSessionModal({
     setGroups((prev) => {
       const next = [...prev];
       const g = { ...next[groupIndex] };
+      const isCardio = isCardioExercise(g.exercise);
       const lastSet = g.sets[g.sets.length - 1];
       const nextNum = g.sets.length + 1;
       const newSet: WorkingSet = {
-        tempId: `set-new-${Date.now()}-${Math.random()}`,
+        tempId: `set-${g.exercise.id}-add-${nextNum}`,
         setNumber: nextNum,
-        weight: lastSet ? lastSet.weight : 20,
+        weight: lastSet ? lastSet.weight : (isCardio ? 1.0 : 20),
         reps: lastSet ? lastSet.reps : 10,
+        rpe: lastSet ? (lastSet.rpe ?? (isCardio ? 5 : null)) : (isCardio ? 5 : null),
         setType: "NORMAL",
         isCompleted: true,
       };
@@ -166,16 +179,28 @@ export function EditWorkoutSessionModal({
     setGroups((prev) => prev.filter((_, idx) => idx !== groupIndex));
   };
 
+  const handleMoveExercise = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= groups.length) return;
+    setGroups((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(index, 1);
+      next.splice(targetIndex, 0, moved);
+      return next;
+    });
+  };
+
   const handleAddExerciseToSession = (exercise: LocalExercise) => {
     if (groups.some((g) => g.exercise.id === exercise.id)) {
       toast.error("Exercise is already in this workout");
       return;
     }
 
+    const isCardio = isCardioExercise(exercise);
     const defaultSets: WorkingSet[] = [
-      { tempId: `set-${Date.now()}-1`, setNumber: 1, weight: 20, reps: 10, setType: "WARMUP", isCompleted: true },
-      { tempId: `set-${Date.now()}-2`, setNumber: 2, weight: 20, reps: 10, setType: "NORMAL", isCompleted: true },
-      { tempId: `set-${Date.now()}-3`, setNumber: 3, weight: 20, reps: 10, setType: "NORMAL", isCompleted: true },
+      { tempId: `set-${exercise.id}-1`, setNumber: 1, weight: isCardio ? 1.0 : 20, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
+      { tempId: `set-${exercise.id}-2`, setNumber: 2, weight: isCardio ? 1.0 : 20, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
+      { tempId: `set-${exercise.id}-3`, setNumber: 3, weight: isCardio ? 1.0 : 20, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
     ];
 
     setGroups((prev) => [...prev, { exercise, sets: defaultSets }]);
@@ -183,8 +208,53 @@ export function EditWorkoutSessionModal({
     toast.success(`Added "${exercise.name}" to workout`);
   };
 
+  const handleLoadRoutineExercises = async () => {
+    if (!sessionData?.session?.routineId) return;
+    try {
+      const routineItems = await db.routineItems
+        .where("routineId")
+        .equals(sessionData.session.routineId)
+        .sortBy("orderIndex");
+      if (routineItems.length === 0) {
+        toast.error("No exercises found in routine template");
+        return;
+      }
+      const exIds = routineItems.map((r) => r.exerciseId);
+      const exercises = await db.exercises.where("id").anyOf(exIds).toArray();
+      const exMap = new Map(exercises.map((e) => [e.id, e]));
+
+      const loadedGroups: WorkingGroup[] = [];
+      for (const item of routineItems) {
+        const ex = exMap.get(item.exerciseId);
+        if (!ex) continue;
+        const isCardio = isCardioExercise(ex);
+        const count = item.targetSets || (isCardio ? 1 : 3);
+        const sets: WorkingSet[] = [];
+        for (let i = 1; i <= count; i++) {
+          sets.push({
+            tempId: `set-${ex.id}-${i}-${Date.now()}`,
+            setNumber: i,
+            weight: isCardio ? 1.0 : 20,
+            reps: 10,
+            rpe: isCardio ? 5 : null,
+            setType: "NORMAL",
+            isCompleted: true,
+          });
+        }
+        loadedGroups.push({ exercise: ex, sets });
+      }
+
+      setGroups(loadedGroups);
+      toast.success(`Loaded ${loadedGroups.length} exercises from routine`);
+    } catch (err) {
+      console.error("Failed to load routine exercises:", err);
+      toast.error("Failed to load routine exercises");
+    }
+  };
+
   // Preview Totals
   const totalVolumePreview = groups.reduce((vol, g) => {
+    if (isCardioExercise(g.exercise)) return vol;
     return (
       vol +
       g.sets
@@ -225,6 +295,7 @@ export function EditWorkoutSessionModal({
             setNumber: s.setNumber,
             weight: Number(s.weight) || 0,
             reps: Number(s.reps) || 0,
+            rpe: s.rpe !== undefined ? s.rpe : null,
             setType: s.setType,
             isCompleted: s.isCompleted,
           });
@@ -375,150 +446,293 @@ export function EditWorkoutSessionModal({
                 </button>
               </div>
 
-              {groups.map((group, groupIdx) => (
-                <div
-                  key={group.exercise.id}
-                  className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3.5 space-y-3"
-                >
-                  {/* Exercise Card Header */}
-                  <div className="flex items-center justify-between pb-2 border-b border-zinc-850">
-                    <div>
-                      <h4 className="font-bold text-xs sm:text-sm text-zinc-100">
-                        {group.exercise.name}
-                      </h4>
-                      <span className="text-[10px] text-zinc-500">
-                        {group.exercise.category} •{" "}
-                        <span className="text-emerald-400">{group.exercise.primaryMuscle}</span>
-                      </span>
-                    </div>
-
+              {groups.length === 0 ? (
+                <div className="text-center py-8 px-4 border border-dashed border-zinc-800 rounded-2xl bg-zinc-950/40 space-y-3">
+                  <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 mx-auto flex items-center justify-center text-zinc-500">
+                    <Dumbbell className="w-5 h-5 text-emerald-400/60" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-zinc-300">No exercises logged for this workout</p>
+                    <p className="text-[11px] text-zinc-500 mt-0.5">
+                      Add exercises or load from template routine to start editing sets.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => handleRemoveExercise(groupIdx)}
-                      className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                      title="Remove exercise from workout"
+                      onClick={() => setShowAddExerciseDrawer(true)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-md shadow-emerald-500/10"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                      <span>Add Exercise</span>
                     </button>
-                  </div>
-
-                  {/* Sets Table */}
-                  <div className="space-y-1.5">
-                    <div className="grid grid-cols-[24px_68px_1fr_1fr_36px_28px] gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500 px-1 items-center">
-                      <span>#</span>
-                      <span>Type</span>
-                      <span className="text-center">Weight</span>
-                      <span className="text-center">Reps</span>
-                      <span className="text-center">Done</span>
-                      <span className="text-center">Del</span>
-                    </div>
-
-                    {group.sets.map((set, setIdx) => (
-                      <div
-                        key={set.tempId}
-                        className={`grid grid-cols-[24px_68px_1fr_1fr_36px_28px] gap-1 items-center p-1.5 rounded-xl border text-xs ${
-                          set.isCompleted
-                            ? "bg-zinc-900/80 border-zinc-800 text-zinc-100"
-                            : "bg-zinc-900/30 border-zinc-850/60 text-zinc-500"
-                        }`}
+                    {sessionData?.session?.routineId && (
+                      <button
+                        type="button"
+                        onClick={() => void handleLoadRoutineExercises()}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all"
                       >
-                        {/* Set # */}
-                        <span className="font-bold font-mono text-[11px] text-zinc-400 text-center">
-                          {set.setNumber}
+                        <RotateCcw className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Load Routine Exercises</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                groups.map((group, groupIdx) => {
+                const isCardio = isCardioExercise(group.exercise);
+
+                return (
+                  <div
+                    key={group.exercise.id}
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-3.5 space-y-3"
+                  >
+                    {/* Exercise Card Header */}
+                    <div className="flex items-center justify-between pb-2 border-b border-zinc-850">
+                      <div>
+                        <h4 className="font-bold text-xs sm:text-sm text-zinc-100">
+                          {group.exercise.name}
+                        </h4>
+                        <span className="text-[10px] text-zinc-500">
+                          {isCardio ? (
+                            <span className="text-cyan-400 font-semibold">Cardio Movement</span>
+                          ) : (
+                            <>
+                              {group.exercise.category} •{" "}
+                              <span className="text-emerald-400">{group.exercise.primaryMuscle}</span>
+                            </>
+                          )}
                         </span>
+                      </div>
 
-                        {/* Set Type Dropdown */}
-                        <select
-                          value={set.setType}
-                          onChange={(e) =>
-                            handleUpdateSet(groupIdx, setIdx, {
-                              setType: e.target.value as SetType,
-                            })
-                          }
-                          className="px-1 py-1 bg-zinc-950 border border-zinc-750 rounded-lg text-[10px] font-semibold text-zinc-200 focus:outline-none"
-                        >
-                          {SET_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>
-                              {t.label}
-                            </option>
-                          ))}
-                        </select>
-
-                        {/* Weight Input */}
-                        <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
-                          <input
-                            type="number"
-                            step="0.5"
-                            min="0"
-                            value={set.weight}
-                            onChange={(e) =>
-                              handleUpdateSet(groupIdx, setIdx, {
-                                weight: parseFloat(e.target.value) || 0,
-                              })
-                            }
-                            className="w-full bg-transparent text-xs font-mono font-bold text-zinc-100 focus:outline-none text-right"
-                          />
-                          <span className="text-[10px] text-zinc-500 ml-0.5">kg</span>
+                      {/* Header Actions: Reorder & Delete */}
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => handleMoveExercise(groupIdx, "up")}
+                            disabled={groupIdx === 0}
+                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-emerald-400 disabled:opacity-20 transition-colors"
+                            title="Move exercise up"
+                          >
+                            <ChevronUp className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMoveExercise(groupIdx, "down")}
+                            disabled={groupIdx === groups.length - 1}
+                            className="w-6 h-6 rounded flex items-center justify-center text-zinc-400 hover:text-emerald-400 disabled:opacity-20 transition-colors"
+                            title="Move exercise down"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
                         </div>
 
-                        {/* Reps Input */}
-                        <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            value={set.reps}
-                            onChange={(e) =>
-                              handleUpdateSet(groupIdx, setIdx, {
-                                reps: parseInt(e.target.value) || 0,
-                              })
-                            }
-                            className="w-full bg-transparent text-xs font-mono font-bold text-zinc-100 focus:outline-none text-right"
-                          />
-                          <span className="text-[10px] text-zinc-500 ml-0.5">r</span>
-                        </div>
-
-                        {/* Completed Checkbox */}
                         <button
                           type="button"
-                          onClick={() =>
-                            handleUpdateSet(groupIdx, setIdx, {
-                              isCompleted: !set.isCompleted,
-                            })
-                          }
-                          className={`w-7 h-7 mx-auto rounded-lg flex items-center justify-center border transition-all ${
-                            set.isCompleted
-                              ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-sm"
-                              : "bg-zinc-800 border-zinc-700 text-zinc-600 hover:text-zinc-400"
-                          }`}
-                          title="Toggle completed"
-                        >
-                          <Check className="w-3.5 h-3.5 stroke-[3]" />
-                        </button>
-
-                        {/* Delete Set */}
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveSet(groupIdx, setIdx)}
-                          className="w-7 h-7 mx-auto rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
-                          title="Delete set"
+                          onClick={() => handleRemoveExercise(groupIdx)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          title="Remove exercise from workout"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    ))}
-                  </div>
+                    </div>
 
-                  {/* Add Set Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleAddSet(groupIdx)}
-                    className="w-full py-1.5 rounded-xl bg-zinc-900 border border-dashed border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all"
-                  >
-                    <Plus className="w-3 h-3" />
-                    <span>Add Set</span>
-                  </button>
-                </div>
-              ))}
+                    {/* Sets Table */}
+                    <div className="space-y-1.5">
+                      {isCardio ? (
+                        <div className="grid grid-cols-[22px_64px_1fr_1fr_1fr_32px_26px] gap-1 text-[9px] font-bold uppercase tracking-wider text-cyan-400/80 px-1 items-center">
+                          <span>#</span>
+                          <span>Type</span>
+                          <span className="text-center">Time (m)</span>
+                          <span className="text-center">Dist (km)</span>
+                          <span className="text-center text-purple-400">Resist</span>
+                          <span className="text-center">Done</span>
+                          <span className="text-center">Del</span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-[24px_68px_1fr_1fr_36px_28px] gap-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500 px-1 items-center">
+                          <span>#</span>
+                          <span>Type</span>
+                          <span className="text-center">Weight</span>
+                          <span className="text-center">Reps</span>
+                          <span className="text-center">Done</span>
+                          <span className="text-center">Del</span>
+                        </div>
+                      )}
+
+                      {group.sets.map((set, setIdx) => (
+                        <div
+                          key={set.tempId}
+                          className={`grid ${
+                            isCardio
+                              ? "grid-cols-[22px_64px_1fr_1fr_1fr_32px_26px]"
+                              : "grid-cols-[24px_68px_1fr_1fr_36px_28px]"
+                          } gap-1 items-center p-1.5 rounded-xl border text-xs ${
+                            set.isCompleted
+                              ? "bg-zinc-900/80 border-zinc-800 text-zinc-100"
+                              : "bg-zinc-900/30 border-zinc-850/60 text-zinc-500"
+                          }`}
+                        >
+                          {/* Set # */}
+                          <span className="font-bold font-mono text-[11px] text-zinc-400 text-center">
+                            {set.setNumber}
+                          </span>
+
+                          {/* Set Type Dropdown */}
+                          <select
+                            value={set.setType}
+                            onChange={(e) =>
+                              handleUpdateSet(groupIdx, setIdx, {
+                                setType: e.target.value as SetType,
+                              })
+                            }
+                            className="px-1 py-1 bg-zinc-950 border border-zinc-750 rounded-lg text-[10px] font-semibold text-zinc-200 focus:outline-none"
+                          >
+                            {SET_TYPES.map((t) => (
+                              <option key={t.value} value={t.value}>
+                                {t.label}
+                              </option>
+                            ))}
+                          </select>
+
+                          {isCardio ? (
+                            <>
+                              {/* Time Input (reps) */}
+                              <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={set.reps}
+                                  onChange={(e) =>
+                                    handleUpdateSet(groupIdx, setIdx, {
+                                      reps: parseInt(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-cyan-300 focus:outline-none text-right"
+                                  placeholder="10"
+                                />
+                                <span className="text-[9px] text-zinc-500 ml-0.5">m</span>
+                              </div>
+
+                              {/* Distance Input (weight) */}
+                              <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="0"
+                                  value={set.weight}
+                                  onChange={(e) =>
+                                    handleUpdateSet(groupIdx, setIdx, {
+                                      weight: parseFloat(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-emerald-300 focus:outline-none text-right"
+                                  placeholder="1.0"
+                                />
+                                <span className="text-[9px] text-zinc-500 ml-0.5">k</span>
+                              </div>
+
+                              {/* Resistance Input (rpe) */}
+                              <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
+                                <input
+                                  type="number"
+                                  step="1"
+                                  min="0"
+                                  value={set.rpe ?? 1}
+                                  onChange={(e) =>
+                                    handleUpdateSet(groupIdx, setIdx, {
+                                      rpe: parseFloat(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-purple-300 focus:outline-none text-right"
+                                  placeholder="1"
+                                />
+                                <span className="text-[9px] text-zinc-500 ml-0.5">L</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {/* Weight Input */}
+                              <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
+                                <input
+                                  type="number"
+                                  step="0.5"
+                                  min="0"
+                                  value={set.weight}
+                                  onChange={(e) =>
+                                    handleUpdateSet(groupIdx, setIdx, {
+                                      weight: parseFloat(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-zinc-100 focus:outline-none text-right"
+                                />
+                                <span className="text-[10px] text-zinc-500 ml-0.5">kg</span>
+                              </div>
+
+                              {/* Reps Input */}
+                              <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={set.reps}
+                                  onChange={(e) =>
+                                    handleUpdateSet(groupIdx, setIdx, {
+                                      reps: parseInt(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="w-full bg-transparent text-xs font-mono font-bold text-zinc-100 focus:outline-none text-right"
+                                />
+                                <span className="text-[10px] text-zinc-500 ml-0.5">r</span>
+                              </div>
+                            </>
+                          )}
+
+                          {/* Completed Checkbox */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleUpdateSet(groupIdx, setIdx, {
+                                isCompleted: !set.isCompleted,
+                              })
+                            }
+                            className={`w-7 h-7 mx-auto rounded-lg flex items-center justify-center border transition-all ${
+                              set.isCompleted
+                                ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-sm"
+                                : "bg-zinc-800 border-zinc-700 text-zinc-600 hover:text-zinc-400"
+                            }`}
+                            title="Toggle completed"
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </button>
+
+                          {/* Delete Set */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSet(groupIdx, setIdx)}
+                            className="w-6 h-7 mx-auto rounded-lg text-zinc-600 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                            title="Delete set"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add Set Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleAddSet(groupIdx)}
+                      className="w-full py-1.5 rounded-xl bg-zinc-900 border border-dashed border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Set</span>
+                    </button>
+                  </div>
+                );
+              })
+            )}
             </div>
           </div>
 

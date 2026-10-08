@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Cloud, CloudOff, RefreshCw, Check } from "lucide-react";
+import { Cloud, CloudOff, RefreshCw } from "lucide-react";
 import { db, fullBiDirectionalSync } from "@/lib/db/dexie";
 import { toast } from "@/stores/useToastStore";
 
 export function SyncStatusBadge() {
-  const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [isOnline, setIsOnline] = useState<boolean>(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
@@ -22,8 +24,33 @@ export function SyncStatusBadge() {
     }
   }, []);
 
+  const handleSync = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.onLine) {
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const res = await fullBiDirectionalSync();
+      await checkStatus();
+      if (res.success) {
+        toast.success("Data synced with cloud!");
+      }
+    } catch {
+      // Background retry silently
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [checkStatus]);
+
   useEffect(() => {
-    void checkStatus();
+    let cancelled = false;
+    db.outbox_sync_queue
+      .count()
+      .then((count) => {
+        if (!cancelled) setPendingCount(count);
+      })
+      .catch(() => {});
 
     const handleOnline = () => {
       setIsOnline(true);
@@ -41,30 +68,12 @@ export function SyncStatusBadge() {
     const interval = setInterval(checkStatus, 5000);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
       clearInterval(interval);
     };
-  }, [checkStatus]);
-
-  const handleSync = async () => {
-    if (!navigator.onLine) {
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      const res = await fullBiDirectionalSync();
-      await checkStatus();
-      if (res.success) {
-        toast.success("Data synced with cloud!");
-      }
-    } catch {
-      // Background retry silently
-    } finally {
-      setIsSyncing(false);
-    }
-  };
+  }, [checkStatus, handleSync]);
 
   if (!isOnline) {
     return (

@@ -9,11 +9,9 @@ import {
   ArrowDown,
   Trash2,
   Check,
-  Dumbbell,
   Layers,
   Pencil,
   ArrowLeftRight,
-  Activity,
 } from "lucide-react";
 import {
   db,
@@ -48,11 +46,11 @@ export function EditRoutineModal({
   onClose,
   onRoutineUpdated,
 }: EditRoutineModalProps) {
+  const [prevRoutineId, setPrevRoutineId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [selectedExercises, setSelectedExercises] = useState<LocalExercise[]>([]);
   const [allExercises, setAllExercises] = useState<LocalExercise[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<ExerciseCategory | "ALL">("ALL");
   const [showAddSection, setShowAddSection] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -69,8 +67,9 @@ export function EditRoutineModal({
   const [newCustomName, setNewCustomName] = useState("");
   const [newCustomCategory, setNewCustomCategory] = useState<ExerciseCategory>("BARBELL");
 
-  useEffect(() => {
-    if (!isOpen || !routine) return;
+  // React recommended pattern: Adjust state when prop changes during render
+  if (routine && routine.id !== prevRoutineId) {
+    setPrevRoutineId(routine.id);
     setName(routine.name);
     const seen = new Set<string>();
     const cleanExercises = routine.items
@@ -85,10 +84,20 @@ export function EditRoutineModal({
     setEditingExerciseId(null);
     setIsSwapping(false);
     setShowCreateCustom(false);
+  }
 
+  // Load all exercises asynchronously for the add/swap library
+  useEffect(() => {
+    if (!isOpen || !routine) return;
+    let cancelled = false;
     void db.exercises.toArray().then((list) => {
-      setAllExercises(list);
+      if (!cancelled) {
+        setAllExercises(list);
+      }
     });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen, routine]);
 
   if (!isOpen || !routine) return null;
@@ -222,11 +231,7 @@ export function EditRoutineModal({
 
   const availableToAdd = allExercises
     .filter((e) => !selectedExercises.some((s) => s.id === e.id))
-    .filter((e) => {
-      const matchSearch = e.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchCat = categoryFilter === "ALL" || e.category === categoryFilter;
-      return matchSearch && matchCat;
-    });
+    .filter((e) => e.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   return (
     <div

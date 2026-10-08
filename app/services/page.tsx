@@ -6,21 +6,14 @@ import { useRouter } from "next/navigation";
 import {
   Sparkles,
   Zap,
-  Activity,
-  ShieldCheck,
   Dumbbell,
   Clock,
   Layers,
   Database,
   LineChart,
   Scale,
-  WifiOff,
   CheckCircle2,
-  ArrowRight,
-  Flame,
-  Award,
   ChevronRight,
-  HeartPulse,
 } from "lucide-react";
 import { SiteHeader } from "@/components/navigation/SiteHeader";
 import { PulseLogo } from "@/components/ui/Logo";

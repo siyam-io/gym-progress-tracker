@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { X, Plus, Search, Dumbbell, Check, Activity } from "lucide-react";
 import { db, LocalExercise, ExerciseCategory, createCustomRoutine } from "@/lib/db/dexie";
 
@@ -32,27 +32,41 @@ export function CreateRoutineModal({
   const [selectedCategory, setSelectedCategory] = useState<ExerciseCategory | "ALL">("ALL");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Hook 1: Load exercises on open
-  useEffect(() => {
-    if (!isOpen) return;
-    void db.exercises.toArray().then((items) => {
-      setExercises(items);
-    });
+  const resetForm = useCallback(() => {
     setName("");
     setSelectedIds([]);
     setSearchQuery("");
     setSelectedCategory("ALL");
+  }, []);
+
+  const handleClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
+
+  // Hook 1: Load exercises asynchronously on open
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    void db.exercises.toArray().then((items) => {
+      if (!cancelled) {
+        setExercises(items);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [isOpen]);
 
-  // Hook 2: Escape key listener (MUST be declared before any early return)
+  // Hook 2: Escape key listener
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, handleClose]);
 
   // Early return ONLY after all hooks have been declared unconditionally
   if (!isOpen) return null;
@@ -87,6 +101,7 @@ export function CreateRoutineModal({
     try {
       setIsSubmitting(true);
       await createCustomRoutine(name.trim(), selectedIds);
+      resetForm();
       onRoutineCreated();
       onClose();
     } catch (err) {
@@ -103,7 +118,7 @@ export function CreateRoutineModal({
   return (
     <div
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
     >
@@ -118,7 +133,7 @@ export function CreateRoutineModal({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-9 h-9 rounded-lg bg-zinc-800 text-zinc-400 hover:text-zinc-100 flex items-center justify-center"
           >
             <X className="w-5 h-5" />
@@ -189,11 +204,10 @@ export function CreateRoutineModal({
                   key={cat.value}
                   type="button"
                   onClick={() => setSelectedCategory(cat.value)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                    selectedCategory === cat.value
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors flex items-center gap-1 ${selectedCategory === cat.value
                       ? "bg-emerald-500 text-zinc-950 font-bold"
                       : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-                  }`}
+                    }`}
                 >
                   {cat.value === "CARDIO" && <Activity className="w-3 h-3" />}
                   <span>{cat.label}</span>
@@ -216,11 +230,10 @@ export function CreateRoutineModal({
                     key={ex.id}
                     type="button"
                     onClick={() => toggleSelectExercise(ex.id)}
-                    className={`w-full text-left p-3 rounded-xl border flex items-center justify-between transition-colors min-h-[48px] ${
-                      isSelected
+                    className={`w-full text-left p-3 rounded-xl border flex items-center justify-between transition-colors min-h-[48px] ${isSelected
                         ? "bg-emerald-950/25 border-emerald-500/40 text-emerald-300"
                         : "bg-zinc-950/60 border-zinc-800 hover:border-zinc-700 text-zinc-300"
-                    }`}
+                      }`}
                   >
                     <div className="flex flex-col">
                       <span className="text-xs font-semibold text-zinc-200">{ex.name}</span>
@@ -230,11 +243,10 @@ export function CreateRoutineModal({
                     </div>
 
                     <div
-                      className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${
-                        isSelected
+                      className={`w-7 h-7 rounded-lg flex items-center justify-center border transition-colors ${isSelected
                           ? "bg-emerald-500 text-zinc-950 border-emerald-400"
                           : "bg-zinc-900 border-zinc-800 text-zinc-500"
-                      }`}
+                        }`}
                     >
                       {isSelected ? <Check className="w-4 h-4 stroke-[3]" /> : <Plus className="w-4 h-4" />}
                     </div>

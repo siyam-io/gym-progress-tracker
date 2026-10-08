@@ -4,13 +4,8 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
   TrendingUp,
   Trophy,
-  Flame,
-  Dumbbell,
   Activity,
-  Layers,
   ChevronDown,
-  Calendar,
-  Sparkles,
 } from "lucide-react";
 import {
   db,

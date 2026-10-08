@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { X, Disc3, Plus, Minus, RotateCcw } from "lucide-react";
+import { X, Disc3 } from "lucide-react";
 
 interface PlateCalculatorModalProps {
   isOpen: boolean;

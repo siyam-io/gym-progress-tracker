@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Check, Dumbbell, Plus } from "lucide-react";
+import { X, Check, Dumbbell } from "lucide-react";
 import { createCustomExercise, ExerciseCategory } from "@/lib/db/dexie";
 
 interface CreateCustomExerciseModalProps {

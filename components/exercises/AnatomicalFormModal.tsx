@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { X, Dumbbell, ShieldCheck, Zap, Info } from "lucide-react";
+import { X, Dumbbell, Zap, Info } from "lucide-react";
 import Image from "next/image";
 import { LocalExercise } from "@/lib/db/dexie";
 

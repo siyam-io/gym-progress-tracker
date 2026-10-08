@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import {
   Mail,
   MessageSquare,
@@ -10,15 +9,10 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronUp,
-  MapPin,
   Clock,
-  Sparkles,
   ShieldCheck,
-  Dumbbell,
-  Globe,
 } from "lucide-react";
 import { SiteHeader } from "@/components/navigation/SiteHeader";
-import { PulseLogo } from "@/components/ui/Logo";
 import { toast } from "@/stores/useToastStore";
 
 interface FaqItem {

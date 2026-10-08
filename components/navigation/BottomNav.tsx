@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Dumbbell, Calendar, TrendingUp, Library, ChevronRight, Activity, Layers } from "lucide-react";
+import { Dumbbell, Calendar, TrendingUp, ChevronRight, Activity, Layers } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 export function BottomNav() {
@@ -40,7 +40,6 @@ export function BottomNav() {
     { label: "Routines", href: "/routines", icon: Layers },
     { label: "History", href: "/history", icon: Calendar },
     { label: "Analytics", href: "/analytics", icon: TrendingUp },
-    { label: "Library", href: "/exercises", icon: Library },
   ];
 
   return (
