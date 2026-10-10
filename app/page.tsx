@@ -19,6 +19,7 @@ import {
   Mail,
   Download,
   EyeOff,
+  Check,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import {
@@ -222,34 +223,37 @@ export default function HomeDashboard() {
           </div>
 
           <div className="grid grid-cols-7 gap-1.5 text-center">
-            {streakData.days.map((day) => (
-              <div key={day.dateStr} className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] font-semibold text-zinc-500">
-                  {day.dayName}
-                </span>
-                <div
-                  className={`w-9 h-9 min-w-9 rounded-xl flex items-center justify-center transition-all ${
-                    day.isCompleted
-                      ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/25"
-                      : day.isToday
-                      ? "bg-zinc-900 border-2 border-emerald-500/60 text-zinc-300"
-                      : "bg-zinc-900/80 border border-zinc-800/80 text-zinc-600"
-                  }`}
-                >
-                  <span
-                    className={`text-xs font-bold ${
+            {streakData.days.map((day) => {
+              const dayOfMonth = parseInt(day.dateStr.split("-")[2] || "0", 10);
+              return (
+                <div key={day.dateStr} className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] font-semibold text-zinc-500">
+                    {day.fullDay}
+                  </span>
+                  <div
+                    className={`w-9 h-9 min-w-9 rounded-xl flex items-center justify-center transition-all ${
                       day.isCompleted
-                        ? "text-zinc-950"
+                        ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/25"
                         : day.isToday
-                        ? "text-emerald-400"
-                        : "text-zinc-500"
+                        ? "bg-zinc-900 border-2 border-emerald-500/60 text-zinc-300"
+                        : "bg-zinc-900/80 border border-zinc-800/80 text-zinc-600"
                     }`}
                   >
-                    {day.dayName[0]}
-                  </span>
+                    {day.isCompleted ? (
+                      <Check className="w-4 h-4 stroke-[3] text-zinc-950" />
+                    ) : (
+                      <span
+                        className={`text-xs font-mono font-bold ${
+                          day.isToday ? "text-emerald-400" : "text-zinc-500"
+                        }`}
+                      >
+                        {dayOfMonth}
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 

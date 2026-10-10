@@ -197,6 +197,12 @@ export async function pullSyncFromServer(): Promise<{
     let pulledSessionsCount = 0;
     if (Array.isArray(sessions)) {
       for (const s of sessions) {
+        // Guard: Never overwrite locally active IN_PROGRESS workout session
+        const localSession = await db.workoutSessions.get(s.id);
+        if (localSession && localSession.status === "IN_PROGRESS") {
+          continue;
+        }
+
         await db.workoutSessions.put({
           id: s.id,
           userId: s.userId || null,

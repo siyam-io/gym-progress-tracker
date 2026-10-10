@@ -78,13 +78,27 @@ export default function ActiveWorkoutPage() {
     }
   }, [initializeOrRestore]);
 
-  // Workout duration timer
+  // Workout duration timer with background tab wakeup listener
   useEffect(() => {
     if (!session) return;
     const interval = setInterval(() => {
       incrementWorkoutElapsed();
     }, 1000);
-    return () => clearInterval(interval);
+
+    const handleWakeup = () => {
+      if (document.visibilityState === "visible") {
+        incrementWorkoutElapsed();
+      }
+    };
+
+    window.addEventListener("visibilitychange", handleWakeup);
+    window.addEventListener("focus", handleWakeup);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("visibilitychange", handleWakeup);
+      window.removeEventListener("focus", handleWakeup);
+    };
   }, [session, incrementWorkoutElapsed]);
 
   // Auto-redirect to home if no active session and not showing completed summary

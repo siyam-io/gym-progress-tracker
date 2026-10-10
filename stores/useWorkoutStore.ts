@@ -35,6 +35,8 @@ export interface WorkoutStore {
   exerciseGroups: ExerciseGroup[];
   workoutElapsedSec: number;
   isPaused: boolean;
+  pausedAtMs: number | null;
+  totalPausedMs: number;
   isLoading: boolean;
   currentUserId: string | null;
   userBodyWeight: number | null;
@@ -74,6 +76,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   exerciseGroups: [],
   workoutElapsedSec: 0,
   isPaused: false,
+  pausedAtMs: null,
+  totalPausedMs: 0,
   isLoading: true,
   currentUserId: null,
   userBodyWeight: null,
@@ -228,6 +232,9 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
         session: inProgressSession,
         exerciseGroups: groups,
         workoutElapsedSec: elapsed,
+        isPaused: false,
+        pausedAtMs: null,
+        totalPausedMs: 0,
         isLoading: false,
       });
     } catch (err) {
@@ -344,21 +351,35 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       exerciseGroups: groups,
       workoutElapsedSec: 0,
       isPaused: false,
+      pausedAtMs: null,
+      totalPausedMs: 0,
     });
   },
 
-  pauseWorkout: () => set({ isPaused: true }),
-  resumeWorkout: () => set({ isPaused: false }),
+  pauseWorkout: () => {
+    if (get().isPaused) return;
+    set({ isPaused: true, pausedAtMs: Date.now() });
+  },
+  resumeWorkout: () => {
+    const { isPaused, pausedAtMs, totalPausedMs } = get();
+    if (!isPaused) return;
+    const now = Date.now();
+    const additional = pausedAtMs ? Math.max(0, now - pausedAtMs) : 0;
+    set({
+      isPaused: false,
+      pausedAtMs: null,
+      totalPausedMs: totalPausedMs + additional,
+    });
+  },
   incrementWorkoutElapsed: () => {
-    const { isPaused, session } = get();
-    if (!isPaused && session?.startTime) {
-      const startTimeMs = new Date(session.startTime).getTime();
-      const nowMs = Date.now();
-      const elapsed = (isNaN(startTimeMs) || startTimeMs > nowMs)
-        ? 0
-        : Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
-      set({ workoutElapsedSec: elapsed });
-    }
+    const { isPaused, session, totalPausedMs } = get();
+    if (isPaused || !session?.startTime) return;
+    const startTimeMs = new Date(session.startTime).getTime();
+    const nowMs = Date.now();
+    const elapsed = (isNaN(startTimeMs) || startTimeMs > nowMs)
+      ? 0
+      : Math.max(0, Math.floor((nowMs - startTimeMs - totalPausedMs) / 1000));
+    set({ workoutElapsedSec: elapsed });
   },
 
   addExercise: async (exercise: LocalExercise) => {
