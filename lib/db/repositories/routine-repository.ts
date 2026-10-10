@@ -16,6 +16,29 @@ export const SYSTEM_ROUTINE_IDS = new Set([
   "routine-day-3",
 ]);
 
+export const HOME_SELECTED_ROUTINES_KEY = "pulse_home_selected_routine_ids";
+
+export function getStoredHomeRoutineIds(): string[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(HOME_SELECTED_ROUTINES_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredHomeRoutineIds(ids: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(HOME_SELECTED_ROUTINES_KEY, JSON.stringify(ids));
+  } catch (err) {
+    console.warn("Failed to save home routine ids:", err);
+  }
+}
+
 /**
  * Returns true if the routine ID belongs to a permanent built-in default routine
  */
@@ -39,6 +62,7 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
     .equals("COMPLETED")
     .toArray();
 
+  const selectedHomeIds = getStoredHomeRoutineIds();
   const results: RoutineWithExercises[] = [];
 
   for (const routine of routines) {
@@ -70,10 +94,15 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
 
     const lastCompletedAt = matchingSessions.length > 0 ? matchingSessions[0].startTime : null;
 
+    const isShownOnHome =
+      selectedHomeIds !== null
+        ? selectedHomeIds.includes(routine.id)
+        : routine.showOnHome !== false;
+
     results.push({
       ...routine,
       isSystem: isSys,
-      showOnHome: routine.showOnHome !== false,
+      showOnHome: isShownOnHome,
       items: rItems,
       targetMuscles: muscles,
       estimatedDurationMin,
@@ -111,6 +140,11 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
   };
 
   await db.routines.put(routine);
+
+  const currentSelected = getStoredHomeRoutineIds();
+  if (currentSelected !== null) {
+    saveStoredHomeRoutineIds([...currentSelected, routineId]);
+  }
 
   const items: LocalRoutineItem[] = uniqueExerciseIds.map((exId, idx) => ({
     id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${idx}`,
@@ -165,6 +199,11 @@ export async function cloneRoutineAsCustom(
 
   await db.routines.put(newRoutine);
 
+  const currentSelected = getStoredHomeRoutineIds();
+  if (currentSelected !== null) {
+    saveStoredHomeRoutineIds([...currentSelected, newRoutineId]);
+  }
+
   const items: LocalRoutineItem[] = finalExerciseIds.map((exId, idx) => ({
     id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `ri-${Date.now()}-${idx}`,
     routineId: newRoutineId,
@@ -187,6 +226,24 @@ export async function setRoutineHomeVisibility(
   routineId: string,
   showOnHome: boolean
 ): Promise<void> {
+  const allRoutines = await db.routines.toArray();
+  let currentIds = getStoredHomeRoutineIds();
+
+  if (currentIds === null) {
+    currentIds = allRoutines
+      .filter((r) => r.showOnHome !== false)
+      .map((r) => r.id);
+  }
+
+  const idSet = new Set(currentIds);
+  if (showOnHome) {
+    idSet.add(routineId);
+  } else {
+    idSet.delete(routineId);
+  }
+
+  saveStoredHomeRoutineIds(Array.from(idSet));
+
   const existing = await db.routines.get(routineId);
   if (existing) {
     await db.routines.update(routineId, { showOnHome, updatedAt: new Date().toISOString() });
@@ -214,6 +271,13 @@ export async function updateRoutine(
     const cloned = await cloneRoutineAsCustom(routineId, name, exerciseIds);
     if (showOnHome !== undefined) {
       await db.routines.update(cloned.id, { showOnHome });
+      const currentSelected = getStoredHomeRoutineIds();
+      if (currentSelected !== null) {
+        const set = new Set(currentSelected);
+        if (showOnHome) set.add(cloned.id);
+        else set.delete(cloned.id);
+        saveStoredHomeRoutineIds(Array.from(set));
+      }
     }
     return cloned;
   }
@@ -224,6 +288,13 @@ export async function updateRoutine(
   const updatePayload: Partial<LocalRoutine> = { name, updatedAt: nowIso };
   if (showOnHome !== undefined) {
     updatePayload.showOnHome = showOnHome;
+    const currentSelected = getStoredHomeRoutineIds();
+    if (currentSelected !== null) {
+      const set = new Set(currentSelected);
+      if (showOnHome) set.add(routineId);
+      else set.delete(routineId);
+      saveStoredHomeRoutineIds(Array.from(set));
+    }
   }
 
   await db.routines.update(routineId, updatePayload);
@@ -320,6 +391,7 @@ export async function ensureSystemRoutines(): Promise<void> {
  * Reset routines to the default Day 01, Day 02, Day 03
  */
 export async function resetToDefaultRoutines(): Promise<void> {
+  saveStoredHomeRoutineIds(DEFAULT_ROUTINES.map((r) => r.id));
   await db.routineItems.clear();
   await db.routines.clear();
   await db.routines.bulkPut(DEFAULT_ROUTINES.map((r) => ({ ...r, showOnHome: true })));

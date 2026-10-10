@@ -11,6 +11,7 @@ import {
   LocalSetLog,
   LocalBodyWeightLog,
 } from "@/types/workout";
+import { getStoredHomeRoutineIds } from "@/lib/db/repositories/routine-repository";
 
 /**
  * Enqueue a mutation into IndexedDB outbox_sync_queue
@@ -152,10 +153,18 @@ export async function pullSyncFromServer(): Promise<{
     let pulledRoutinesCount = 0;
     if (Array.isArray(routines)) {
       for (const r of routines) {
+        const existing = await db.routines.get(r.id);
+        const storedSelected = getStoredHomeRoutineIds();
+        const showOnHome =
+          storedSelected !== null
+            ? storedSelected.includes(r.id)
+            : existing?.showOnHome ?? true;
+
         await db.routines.put({
           id: r.id,
           name: r.name,
           userId: r.userId || null,
+          showOnHome,
           createdAt: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
           updatedAt: r.updatedAt ? new Date(r.updatedAt).toISOString() : new Date().toISOString(),
         });

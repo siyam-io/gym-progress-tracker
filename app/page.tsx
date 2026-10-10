@@ -18,6 +18,7 @@ import {
   Info,
   Mail,
   Download,
+  EyeOff,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 import {
@@ -28,7 +29,9 @@ import {
   StreakDay,
   deleteRoutine,
   resetToDefaultRoutines,
+  setRoutineHomeVisibility,
 } from "@/lib/db/dexie";
+import { toast } from "@/stores/useToastStore";
 import { CreateRoutineModal } from "@/components/routine/CreateRoutineModal";
 import { AuthButton } from "@/components/auth/AuthButton";
 import { DailyWeightCard } from "@/components/weight/DailyWeightCard";
@@ -112,6 +115,20 @@ export default function HomeDashboard() {
     await deleteRoutine(routineToDelete.id);
     setRoutineToDelete(null);
     await loadData();
+  };
+
+  const handleHideFromHome = async (e: React.MouseEvent, routineId: string, routineName: string) => {
+    e.stopPropagation();
+    try {
+      await setRoutineHomeVisibility(routineId, false);
+      setRoutines((prev) =>
+        prev.map((r) => (r.id === routineId ? { ...r, showOnHome: false } : r))
+      );
+      toast.success(`"${routineName}" hidden from Home Dashboard`);
+    } catch (err) {
+      console.error("Failed to hide routine from home:", err);
+      toast.error("Failed to update routine setting");
+    }
   };
 
   const handleResetRoutines = () => {
@@ -421,6 +438,16 @@ export default function HomeDashboard() {
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {/* Hide from Home Dashboard Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleHideFromHome(e, routine.id, routine.name)}
+                          className="w-9 h-9 rounded-xl bg-zinc-900 hover:bg-amber-500/10 text-zinc-500 hover:text-amber-400 border border-zinc-800 flex items-center justify-center transition-colors"
+                          title="Hide from Home Dashboard (can be re-enabled in Routines Hub)"
+                        >
+                          <EyeOff className="w-3.5 h-3.5" />
+                        </button>
+
                         {/* Delete button if user wants to delete */}
                         <button
                           type="button"
