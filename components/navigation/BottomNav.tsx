@@ -43,7 +43,7 @@ export function BottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none">
+    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 w-full pointer-events-none">
       {/* Mini Persistent In-Progress Workout Floating Banner */}
       {session && (
         <div className="max-w-md mx-auto px-3 pb-2 pointer-events-auto">

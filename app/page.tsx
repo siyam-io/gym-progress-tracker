@@ -156,35 +156,43 @@ export default function HomeDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-28 max-w-md mx-auto selection:bg-emerald-500 selection:text-zinc-950">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-28 md:pb-12 w-full max-w-md md:max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto selection:bg-emerald-500 selection:text-zinc-950">
       {/* Top Header Navbar */}
-      <header className="px-4 sm:px-5 pt-5 pb-3.5 flex items-center justify-between border-b border-zinc-900/80 bg-zinc-950/90 backdrop-blur-md sticky top-0 z-30">
+      <header className="px-4 sm:px-6 md:px-8 pt-5 pb-3.5 flex items-center justify-between border-b border-zinc-900/80 bg-zinc-950/90 backdrop-blur-md sticky top-0 z-30">
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-          <PulseLogo size="md" />
+          <div className="md:hidden">
+            <PulseLogo size="md" />
+          </div>
           <div className="min-w-0">
-            <h1 className="text-base font-black tracking-tight text-zinc-100 leading-none">
-              PULSE GYM
+            <h1 className="text-base sm:text-lg font-black tracking-tight text-zinc-100 leading-none">
+              <span className="md:hidden">PULSE GYM</span>
+              <span className="hidden md:inline">Dashboard Overview</span>
             </h1>
-            <span className="text-[11px] text-zinc-400 font-medium mt-0.5 truncate block whitespace-nowrap">
-              {greeting}, Athlete
+            <span className="text-[11px] sm:text-xs text-zinc-400 font-medium mt-0.5 truncate block whitespace-nowrap">
+              {greeting}, Athlete • Ready for your workout?
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-          <SyncStatusBadge />
-          <div className="flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-[11px] font-mono text-emerald-400">
-            <Flame className="w-3.5 h-3.5 text-amber-400" />
-            <span>{streakData.completedCount}</span>
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="md:hidden">
+            <SyncStatusBadge />
           </div>
-          <AuthButton />
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-zinc-900/90 border border-zinc-800 text-xs font-mono text-emerald-400">
+            <Flame className="w-3.5 h-3.5 text-amber-400" />
+            <span className="font-bold">{streakData.completedCount}</span>
+            <span className="hidden sm:inline text-zinc-500 text-[10px]">streak</span>
+          </div>
+          <div className="md:hidden">
+            <AuthButton />
+          </div>
         </div>
       </header>
 
       {/* Main Dashboard Content */}
-      <main className="p-4 sm:p-5 space-y-5 flex-1">
-        {/* Navigation Shortcut Pills to Services, About, and Contact */}
-        <div className="flex items-center justify-between gap-1.5 p-1 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 text-xs">
+      <main className="p-4 sm:px-6 md:px-8 py-5 sm:py-6 space-y-6 flex-1">
+        {/* Navigation Shortcut Pills to Services, About, and Contact (Mobile only) */}
+        <div className="md:hidden flex items-center justify-between gap-1.5 p-1 rounded-2xl bg-zinc-900/60 border border-zinc-800/80 text-xs">
           <Link
             href="/services"
             className="flex-1 py-1.5 px-2 rounded-xl text-center font-bold text-zinc-400 hover:text-emerald-400 hover:bg-zinc-800/80 transition-colors flex items-center justify-center gap-1 text-[11px]"
@@ -210,77 +218,85 @@ export default function HomeDashboard() {
           </Link>
         </div>
 
-        {/* Weekly Streak Widget */}
-        <section className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
-              Weekly Training Streak
-            </span>
-            <span className="text-xs font-mono font-bold text-zinc-300">
-              {streakData.completedCount} / 7 days
-            </span>
-          </div>
+        {/* Top Analytics Row: Streak, Quick Launch & Body Weight (Side-by-side on desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          {/* Left Column: Streak & Instant Session */}
+          <div className="lg:col-span-5 space-y-5">
+            {/* Weekly Streak Widget */}
+            <section className="bg-zinc-900/60 border border-zinc-800/80 rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+                  Weekly Training Streak
+                </span>
+                <span className="text-xs font-mono font-bold text-zinc-300">
+                  {streakData.completedCount} / 7 days
+                </span>
+              </div>
 
-          <div className="grid grid-cols-7 gap-1.5 text-center">
-            {streakData.days.map((day) => {
-              const dayOfMonth = parseInt(day.dateStr.split("-")[2] || "0", 10);
-              return (
-                <div key={day.dateStr} className="flex flex-col items-center gap-1.5">
-                  <span className="text-[10px] font-semibold text-zinc-500">
-                    {day.fullDay}
-                  </span>
-                  <div
-                    className={`w-9 h-9 min-w-9 rounded-xl flex items-center justify-center transition-all ${
-                      day.isCompleted
-                        ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/25"
-                        : day.isToday
-                        ? "bg-zinc-900 border-2 border-emerald-500/60 text-zinc-300"
-                        : "bg-zinc-900/80 border border-zinc-800/80 text-zinc-600"
-                    }`}
-                  >
-                    {day.isCompleted ? (
-                      <Check className="w-4 h-4 stroke-[3] text-zinc-950" />
-                    ) : (
-                      <span
-                        className={`text-xs font-mono font-bold ${
-                          day.isToday ? "text-emerald-400" : "text-zinc-500"
+              <div className="grid grid-cols-7 gap-1.5 text-center">
+                {streakData.days.map((day) => {
+                  const dayOfMonth = parseInt(day.dateStr.split("-")[2] || "0", 10);
+                  return (
+                    <div key={day.dateStr} className="flex flex-col items-center gap-1.5">
+                      <span className="text-[10px] font-semibold text-zinc-500">
+                        {day.fullDay}
+                      </span>
+                      <div
+                        className={`w-9 h-9 min-w-9 rounded-xl flex items-center justify-center transition-all ${
+                          day.isCompleted
+                            ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/25"
+                            : day.isToday
+                            ? "bg-zinc-900 border-2 border-emerald-500/60 text-zinc-300"
+                            : "bg-zinc-900/80 border border-zinc-800/80 text-zinc-600"
                         }`}
                       >
-                        {dayOfMonth}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+                        {day.isCompleted ? (
+                          <Check className="w-4 h-4 stroke-[3] text-zinc-950" />
+                        ) : (
+                          <span
+                            className={`text-xs font-mono font-bold ${
+                              day.isToday ? "text-emerald-400" : "text-zinc-500"
+                            }`}
+                          >
+                            {dayOfMonth}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
 
-        {/* Daily Weight Logger */}
-        <DailyWeightCard />
-
-        {/* Quick Launch Card */}
-        <section className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-zinc-900 to-zinc-900 border border-emerald-500/30 flex items-center justify-between shadow-lg shadow-emerald-950/20">
-          <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 block mb-0.5">
-              Instant Session
-            </span>
-            <h2 className="text-sm font-black text-zinc-100">Empty Gym Floor</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Log sets freely on the fly</p>
+            {/* Quick Launch Card */}
+            <section className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/60 via-zinc-900 to-zinc-900 border border-emerald-500/30 flex items-center justify-between shadow-lg shadow-emerald-950/20">
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-400 block mb-0.5">
+                  Instant Session
+                </span>
+                <h2 className="text-sm font-black text-zinc-100">Empty Gym Floor</h2>
+                <p className="text-xs text-zinc-400 mt-0.5">Log sets freely on the fly</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void handleStartEmptyWorkout()}
+                className="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-emerald-500/30 shrink-0"
+                title="Start Empty Workout"
+              >
+                <Play className="w-5 h-5 fill-current ml-0.5" />
+              </button>
+            </section>
           </div>
-          <button
-            type="button"
-            onClick={() => void handleStartEmptyWorkout()}
-            className="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-emerald-500/30 shrink-0"
-            title="Start Empty Workout"
-          >
-            <Play className="w-5 h-5 fill-current ml-0.5" />
-          </button>
-        </section>
+
+          {/* Right Column: Daily Weight Logger */}
+          <div className="lg:col-span-7">
+            <DailyWeightCard />
+          </div>
+        </div>
 
         {/* Workout Routines Section */}
-        <section className="space-y-3">
+        <section className="space-y-4 pt-2">
           <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
             <div className="flex items-center gap-1.5 min-w-0">
               <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -315,7 +331,8 @@ export default function HomeDashboard() {
           </div>
 
           {isLoading ? (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <RoutineCardSkeleton />
               <RoutineCardSkeleton />
               <RoutineCardSkeleton />
             </div>
@@ -347,7 +364,7 @@ export default function HomeDashboard() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {routines
                 .filter((r) => r.showOnHome !== false)
                 .map((routine) => {

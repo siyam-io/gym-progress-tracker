@@ -88,7 +88,7 @@ export function HistoryFeed({
       </div>
 
       {isLoading ? (
-        <div className="space-y-3 w-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 w-full">
           <HistoryCardSkeleton />
           <HistoryCardSkeleton />
           <HistoryCardSkeleton />
@@ -154,7 +154,8 @@ export function HistoryFeed({
           )}
         </div>
       ) : (
-        filteredSessions.map((item) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 w-full">
+        {filteredSessions.map((item) => (
           <div
             key={item.id}
             onClick={() => onInspectSession(item.id)}
@@ -264,7 +265,8 @@ export function HistoryFeed({
               </div>
             </div>
           </div>
-        ))
+        ))}
+        </div>
       )}
     </section>
   );

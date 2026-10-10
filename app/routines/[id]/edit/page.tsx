@@ -375,9 +375,9 @@ export default function EditRoutinePage() {
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-36 min-w-0 selection:bg-emerald-500 selection:text-zinc-950">
+    <div className="w-full max-w-lg md:max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-36 md:pb-12 min-w-0 selection:bg-emerald-500 selection:text-zinc-950">
       {/* 1. Sticky Navigation Header */}
-      <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between gap-2">
+      <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 sm:px-6 md:px-8 py-3.5 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <button
             type="button"
@@ -422,8 +422,9 @@ export default function EditRoutinePage() {
       </header>
 
       {/* Main Content */}
-      <main className="p-3 sm:p-4 space-y-4 flex-1">
-        {/* 2. Executive Hero Meta Card */}
+      <main className="p-3 sm:p-4 md:px-8 py-5 flex-1 md:grid md:grid-cols-3 md:gap-6 md:items-start space-y-4 md:space-y-0">
+        {/* Left Column: Executive Hero Meta Card */}
+        <div className="md:col-span-1 md:sticky md:top-20 space-y-4">
         <section className="relative overflow-hidden rounded-3xl border border-zinc-800/90 bg-gradient-to-b from-zinc-900/95 via-zinc-900/75 to-zinc-950/90 p-4 sm:p-5 shadow-2xl backdrop-blur-xl space-y-4">
           <div className="absolute top-0 right-0 w-44 h-44 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -534,15 +535,18 @@ export default function EditRoutinePage() {
             </div>
           )}
         </section>
+        </div>
 
-        {/* 3. Movements Section Header */}
-        <div className="flex items-center justify-between pt-2">
-          <h2 className="text-xs font-black uppercase tracking-wider text-zinc-400">
-            Selected Movements ({selectedExercises.length})
-          </h2>
+        {/* Right Column: Movements Section */}
+        <div className="md:col-span-2 space-y-4">
+          {/* 3. Movements Section Header */}
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-black uppercase tracking-wider text-zinc-400">
+              Selected Movements ({selectedExercises.length})
+            </h2>
 
-          <button
-            type="button"
+            <button
+              type="button"
             onClick={() => {
               setSearchQuery("");
               setShowAddModal(true);
@@ -788,10 +792,11 @@ export default function EditRoutinePage() {
             })}
           </div>
         )}
+        </div>
       </main>
 
-      {/* 5. Fixed Sticky Bottom Dock */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-md border-t border-zinc-800/80 p-3 sm:p-4">
+      {/* 5. Fixed Sticky Bottom Dock (Mobile Only) */}
+      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/90 backdrop-blur-md border-t border-zinc-800/80 p-3 sm:p-4 md:hidden">
         <div className="w-full max-w-lg mx-auto flex items-center gap-3">
           <button
             type="button"

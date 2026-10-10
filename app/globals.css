@@ -1,13 +1,84 @@
 @import "tailwindcss";
 
 :root {
+  /* Surfaces & Backgrounds */
   --background: #09090b;
   --foreground: #fafafa;
+  --surface: #121215;
+  --surface-card: #141418;
+  --surface-elevated: #18181e;
+  --surface-sunken: #0c0c0e;
+  --surface-hover: #1e1e24;
+
+  /* Borders & Dividers */
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --border-default: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --border-primary: rgba(16, 185, 129, 0.35);
+
+  /* Primary Brand (Emerald Accent) */
+  --primary: #10b981;
+  --primary-hover: #34d399;
+  --primary-active: #059669;
+  --primary-subtle: rgba(16, 185, 129, 0.12);
+  --primary-glow: rgba(16, 185, 129, 0.25);
+
+  /* Accent Colors */
+  --accent-cyan: #06b6d4;
+  --accent-cyan-subtle: rgba(6, 182, 212, 0.12);
+  --accent-purple: #a855f7;
+  --accent-purple-subtle: rgba(168, 85, 247, 0.12);
+  --accent-amber: #f59e0b;
+  --accent-amber-subtle: rgba(245, 158, 11, 0.12);
+  --accent-rose: #f43f5e;
+  --accent-rose-subtle: rgba(244, 63, 94, 0.12);
+
+  /* Text & Typography */
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-dim: #52525b;
+
+  /* Elevation Shadows */
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5);
+  --shadow-glow-emerald: 0 0 25px -5px rgba(16, 185, 129, 0.3);
+  --shadow-dock: 0 -4px 25px 0 rgba(0, 0, 0, 0.6);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-card: var(--surface-card);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-border-primary: var(--border-primary);
+
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-active: var(--primary-active);
+  --color-primary-subtle: var(--primary-subtle);
+  --color-primary-glow: var(--primary-glow);
+
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-cyan-subtle: var(--accent-cyan-subtle);
+  --color-accent-purple: var(--accent-purple);
+  --color-accent-purple-subtle: var(--accent-purple-subtle);
+  --color-accent-amber: var(--accent-amber);
+  --color-accent-amber-subtle: var(--accent-amber-subtle);
+  --color-accent-rose: var(--accent-rose);
+  --color-accent-rose-subtle: var(--accent-rose-subtle);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-text-dim: var(--text-dim);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

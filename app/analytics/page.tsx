@@ -266,9 +266,9 @@ export default function AnalyticsPage() {
   }, [sessions]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-28 max-w-md mx-auto selection:bg-emerald-500 selection:text-zinc-950">
+    <div className="w-full max-w-md md:max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-28 md:pb-12 min-w-0 selection:bg-emerald-500 selection:text-zinc-950">
       {/* Top Header */}
-      <header className="px-5 pt-6 pb-4 border-b border-zinc-900/80 flex items-center justify-between">
+      <header className="px-5 md:px-8 pt-6 pb-4 border-b border-zinc-900/80 flex items-center justify-between sticky top-0 bg-zinc-950/95 backdrop-blur-md z-30">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
             <TrendingUp className="w-5 h-5" />
@@ -288,15 +288,17 @@ export default function AnalyticsPage() {
       </header>
 
       {/* Main Analytics Content */}
-      <main className="p-5 space-y-6 flex-1">
+      <main className="p-5 md:px-8 space-y-6 flex-1">
         {isLoading ? (
           <div className="py-24 text-center text-zinc-500 text-xs">
             Calculating performance metrics...
           </div>
         ) : (
           <>
+            {/* Top Grid: Weekly Volume Trend & Muscle Heatmap */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 1. Weekly Volume Trend (Interactive Bar Chart) */}
-            <section className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3 shadow-sm">
+            <section className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between pb-1">
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
@@ -440,9 +442,12 @@ export default function AnalyticsPage() {
                 })}
               </div>
             </section>
+            </div>
 
+            {/* Bottom Grid: 1RM Progression Curve & PR Wall */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             {/* 3. 1RM Progression Curve (SVG Vector Line Graph) */}
-            <section className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 space-y-3 shadow-sm">
+            <section className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 space-y-3 shadow-sm flex flex-col justify-between">
               <div className="flex items-center justify-between pb-1">
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-300">
@@ -616,7 +621,7 @@ export default function AnalyticsPage() {
                   <p className="text-xs text-zinc-500">No PR records logged yet.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-2.5">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5">
                   {prWallData.map((pr) => {
                     const unlockDateFormatted = new Date(pr.unlockedDate).toLocaleDateString(
                       undefined,
@@ -661,6 +666,7 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </section>
+            </div>
           </>
         )}
       </main>

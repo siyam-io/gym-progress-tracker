@@ -49,9 +49,9 @@ export default function HistoryPage() {
   } = useWorkoutHistory();
 
   return (
-    <div className="w-full max-w-md mx-auto min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-32 min-w-0 selection:bg-emerald-500 selection:text-zinc-950">
+    <div className="w-full max-w-md md:max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto min-h-screen bg-zinc-950 text-zinc-100 flex flex-col pb-32 md:pb-12 min-w-0 selection:bg-emerald-500 selection:text-zinc-950">
       {/* Top Header */}
-      <header className="w-full px-5 pt-6 pb-4 border-b border-zinc-900/80 flex items-center justify-between sticky top-0 bg-zinc-950/95 backdrop-blur-md z-30">
+      <header className="w-full px-5 md:px-8 pt-6 pb-4 border-b border-zinc-900/80 flex items-center justify-between sticky top-0 bg-zinc-950/95 backdrop-blur-md z-30">
         <div className="flex items-center gap-2.5">
           <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shadow-lg shadow-emerald-500/10 shrink-0">
             <CalendarIcon className="w-5 h-5" />

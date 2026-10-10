@@ -37,6 +37,7 @@ export const viewport: Viewport = {
 };
 
 import { BottomNav } from "@/components/navigation/BottomNav";
+import { DesktopSidebar } from "@/components/navigation/DesktopSidebar";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { GlobalSyncManager } from "@/components/providers/GlobalSyncManager";
@@ -52,12 +53,20 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
+      <body className="min-h-full flex flex-col md:flex-row bg-zinc-950 text-zinc-100 selection:bg-emerald-500 selection:text-zinc-950">
         <AuthProvider>
           <GlobalSyncManager />
           <ToastContainer />
           <ServiceWorkerRegister />
-          {children}
+          {/* Desktop Left Sidebar Navigation */}
+          <DesktopSidebar />
+
+          {/* Main App Viewport */}
+          <div className="flex-1 min-w-0 flex flex-col">
+            {children}
+          </div>
+
+          {/* Mobile Bottom Navigation */}
           <BottomNav />
         </AuthProvider>
       </body>
