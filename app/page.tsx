@@ -260,34 +260,34 @@ export default function HomeDashboard() {
 
         {/* Workout Routines Section */}
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Layers className="w-4 h-4 text-emerald-400" />
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-zinc-300">
-                Gym Workout Routines
+          <div className="flex items-center justify-between gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Layers className="w-4 h-4 text-emerald-400 shrink-0" />
+              <h2 className="text-xs sm:text-sm font-extrabold uppercase tracking-wide text-zinc-300 whitespace-nowrap">
+                Workout Routines
               </h2>
               {routines.length > 0 && routines.some((r) => r.showOnHome === false) && (
-                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap shrink-0">
                   {routines.filter((r) => r.showOnHome !== false).length} Active
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0 whitespace-nowrap">
               <Link
                 href="/routines"
-                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors"
+                className="text-[11px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-1 px-2 sm:px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors whitespace-nowrap shrink-0"
                 title="Manage and Import Workout Routines"
               >
-                <Download className="w-3 h-3" />
+                <Download className="w-3 h-3 shrink-0" />
                 <span>Routines Hub</span>
               </Link>
               <button
                 type="button"
                 onClick={handleResetRoutines}
-                className="text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-zinc-900 transition-colors"
+                className="text-[11px] font-semibold text-zinc-400 hover:text-zinc-200 flex items-center gap-1 p-1 sm:px-2 sm:py-1 rounded-lg hover:bg-zinc-900 transition-colors whitespace-nowrap shrink-0"
                 title="Reset routines to Day 01, Day 02, Day 03"
               >
-                <RotateCcw className="w-3 h-3" />
+                <RotateCcw className="w-3 h-3 shrink-0" />
                 <span className="hidden sm:inline">Reset</span>
               </button>
             </div>
