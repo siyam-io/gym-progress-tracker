@@ -365,7 +365,10 @@ export function SessionDetailModal({
 
                   <button
                     type="button"
-                    onClick={() => setShowEditModal(true)}
+                    onClick={() => {
+                      onClose();
+                      router.push(`/history/${sessionId}/edit`);
+                    }}
                     className="py-3 px-3.5 min-h-[48px] rounded-xl bg-zinc-850 hover:bg-zinc-800 border border-zinc-750 text-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all shrink-0"
                     title="Edit workout title, exercises, weights, and reps"
                   >

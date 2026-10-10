@@ -591,22 +591,35 @@ export function EditWorkoutSessionModal({
                             {set.setNumber}
                           </span>
 
-                          {/* Set Type Dropdown */}
-                          <select
-                            value={set.setType}
-                            onChange={(e) =>
-                              handleUpdateSet(groupIdx, setIdx, {
-                                setType: e.target.value as SetType,
-                              })
-                            }
-                            className="px-1 py-1 bg-zinc-950 border border-zinc-750 rounded-lg text-[10px] font-semibold text-zinc-200 focus:outline-none"
+                          {/* Set Type Pill Button (Replaces cramped select) */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const types: SetType[] = ["NORMAL", "WARMUP", "DROPSET", "FAILURE"];
+                              const nextIdx = (types.indexOf(set.setType) + 1) % types.length;
+                              handleUpdateSet(groupIdx, setIdx, { setType: types[nextIdx] });
+                            }}
+                            className={`h-7 px-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border flex items-center justify-center transition-all ${
+                              set.setType === "WARMUP"
+                                ? "bg-amber-500/15 border-amber-500/40 text-amber-400"
+                                : set.setType === "DROPSET"
+                                ? "bg-purple-500/15 border-purple-500/40 text-purple-400"
+                                : set.setType === "FAILURE"
+                                ? "bg-red-500/15 border-red-500/40 text-red-400"
+                                : "bg-zinc-800 border-zinc-700 text-zinc-300"
+                            }`}
+                            title={`Type: ${set.setType}. Tap to cycle.`}
                           >
-                            {SET_TYPES.map((t) => (
-                              <option key={t.value} value={t.value}>
-                                {t.label}
-                              </option>
-                            ))}
-                          </select>
+                            <span>
+                              {set.setType === "NORMAL"
+                                ? "Norm"
+                                : set.setType === "WARMUP"
+                                ? "Warm"
+                                : set.setType === "DROPSET"
+                                ? "Drop"
+                                : "Fail"}
+                            </span>
+                          </button>
 
                           {isCardio ? (
                             <>

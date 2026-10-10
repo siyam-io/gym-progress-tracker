@@ -122,7 +122,10 @@ export default function HistoryPage() {
           }}
           onBrowseRoutines={() => router.push("/")}
           onInspectSession={(id) => setInspectingSessionId(id)}
-          onDirectEdit={handleDirectEdit}
+          onDirectEdit={(id, e) => {
+            e.stopPropagation();
+            router.push(`/history/${id}/edit`);
+          }}
           onDeleteRequest={(item, e) => {
             e.stopPropagation();
             setSessionToDelete(item);
