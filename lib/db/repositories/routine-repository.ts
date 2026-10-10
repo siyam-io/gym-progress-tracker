@@ -73,6 +73,7 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
     results.push({
       ...routine,
       isSystem: isSys,
+      showOnHome: routine.showOnHome !== false,
       items: rItems,
       targetMuscles: muscles,
       estimatedDurationMin,
@@ -104,6 +105,7 @@ export async function createCustomRoutine(name: string, exerciseIds: string[]): 
     name,
     userId: null,
     isSystem: false,
+    showOnHome: true,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -156,6 +158,7 @@ export async function cloneRoutineAsCustom(
     name: baseName,
     userId: null,
     isSystem: false,
+    showOnHome: true,
     createdAt: nowIso,
     updatedAt: nowIso,
   };
@@ -178,6 +181,24 @@ export async function cloneRoutineAsCustom(
 }
 
 /**
+ * Set whether a routine should be displayed on the Home Dashboard
+ */
+export async function setRoutineHomeVisibility(
+  routineId: string,
+  showOnHome: boolean
+): Promise<void> {
+  const existing = await db.routines.get(routineId);
+  if (existing) {
+    await db.routines.update(routineId, { showOnHome, updatedAt: new Date().toISOString() });
+  } else {
+    const def = DEFAULT_ROUTINES.find((d) => d.id === routineId);
+    if (def) {
+      await db.routines.put({ ...def, showOnHome, updatedAt: new Date().toISOString() });
+    }
+  }
+}
+
+/**
  * Update an existing routine (rename, reorder, or update exercises).
  * If called on a system default routine, automatically performs Copy-on-Write
  * to produce a separate custom routine without modifying the global default.
@@ -185,17 +206,27 @@ export async function cloneRoutineAsCustom(
 export async function updateRoutine(
   routineId: string,
   name: string,
-  exerciseIds: string[]
+  exerciseIds: string[],
+  showOnHome?: boolean
 ): Promise<LocalRoutine | void> {
   // Copy-on-Write guard for system default routines
   if (isSystemRoutine(routineId)) {
-    return await cloneRoutineAsCustom(routineId, name, exerciseIds);
+    const cloned = await cloneRoutineAsCustom(routineId, name, exerciseIds);
+    if (showOnHome !== undefined) {
+      await db.routines.update(cloned.id, { showOnHome });
+    }
+    return cloned;
   }
 
   const nowIso = new Date().toISOString();
   const uniqueExerciseIds = Array.from(new Set(exerciseIds));
 
-  await db.routines.update(routineId, { name, updatedAt: nowIso });
+  const updatePayload: Partial<LocalRoutine> = { name, updatedAt: nowIso };
+  if (showOnHome !== undefined) {
+    updatePayload.showOnHome = showOnHome;
+  }
+
+  await db.routines.update(routineId, updatePayload);
   await db.routineItems.where("routineId").equals(routineId).delete();
 
   const items: LocalRoutineItem[] = uniqueExerciseIds.map((exId, idx) => ({
@@ -258,7 +289,11 @@ export async function ensureSystemRoutines(): Promise<void> {
   for (const defRoutine of DEFAULT_ROUTINES) {
     const existing = await db.routines.get(defRoutine.id);
     if (!existing || existing.name !== defRoutine.name) {
-      await db.routines.put({ ...defRoutine, isSystem: true });
+      await db.routines.put({
+        ...defRoutine,
+        isSystem: true,
+        showOnHome: existing?.showOnHome ?? true,
+      });
     }
     const defItems = DEFAULT_ROUTINE_ITEMS.filter((i) => i.routineId === defRoutine.id);
     const existingItems = await db.routineItems
@@ -287,6 +322,6 @@ export async function ensureSystemRoutines(): Promise<void> {
 export async function resetToDefaultRoutines(): Promise<void> {
   await db.routineItems.clear();
   await db.routines.clear();
-  await db.routines.bulkPut(DEFAULT_ROUTINES);
+  await db.routines.bulkPut(DEFAULT_ROUTINES.map((r) => ({ ...r, showOnHome: true })));
   await db.routineItems.bulkPut(DEFAULT_ROUTINE_ITEMS);
 }

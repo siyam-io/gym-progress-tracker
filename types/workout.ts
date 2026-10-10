@@ -28,6 +28,7 @@ export interface LocalRoutine {
   name: string;
   userId?: string | null;
   isSystem?: boolean;
+  showOnHome?: boolean;
   createdAt: string;
   updatedAt: string;
 }

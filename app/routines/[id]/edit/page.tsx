@@ -20,6 +20,7 @@ import {
   Sparkles,
   AlertCircle,
   Copy,
+  Home,
 } from "lucide-react";
 import {
   db,
@@ -71,6 +72,7 @@ export default function EditRoutinePage() {
   const [name, setName] = useState("");
   const [selectedExercises, setSelectedExercises] = useState<LocalExercise[]>([]);
   const [allExercises, setAllExercises] = useState<LocalExercise[]>([]);
+  const [showOnHome, setShowOnHome] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   // Add Exercise Modal State
@@ -115,6 +117,7 @@ export default function EditRoutinePage() {
         if (r) {
           setRoutine(r);
           setName(r.isSystem ? `${r.name} (Custom)` : r.name);
+          setShowOnHome(r.showOnHome !== false);
 
           const seen = new Set<string>();
           const cleanExercises = r.items
@@ -288,7 +291,8 @@ export default function EditRoutinePage() {
       await updateRoutine(
         routine.id,
         name.trim(),
-        selectedExercises.map((e) => e.id)
+        selectedExercises.map((e) => e.id),
+        showOnHome
       );
 
       if (routine.isSystem) {
@@ -440,6 +444,32 @@ export default function EditRoutinePage() {
               placeholder="e.g. Day 01 Push & Upper Body"
               className="w-full px-4 py-3 bg-zinc-950/80 border border-zinc-800 focus:border-emerald-500/80 rounded-2xl text-base sm:text-lg font-black text-zinc-100 placeholder:text-zinc-600 outline-none transition-all focus:ring-2 focus:ring-emerald-500/15"
             />
+          </div>
+
+          {/* Home Screen Toggle */}
+          <div className="p-3 rounded-2xl bg-zinc-950/80 border border-zinc-800 flex items-center justify-between gap-3">
+            <div className="space-y-0.5">
+              <span className="text-xs font-bold text-zinc-200 flex items-center gap-1.5">
+                <Home className="w-3.5 h-3.5 text-emerald-400" />
+                Show on Home Dashboard
+              </span>
+              <p className="text-[11px] text-zinc-400">
+                Display this routine on the home screen quick workouts list
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowOnHome(!showOnHome)}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                showOnHome ? "bg-emerald-500" : "bg-zinc-800"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  showOnHome ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
           </div>
 
           {/* System Routine Copy-on-Write Alert */}

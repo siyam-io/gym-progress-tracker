@@ -266,6 +266,11 @@ export default function HomeDashboard() {
               <h2 className="text-sm font-extrabold uppercase tracking-wider text-zinc-300">
                 Gym Workout Routines
               </h2>
+              {routines.length > 0 && routines.some((r) => r.showOnHome === false) && (
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  {routines.filter((r) => r.showOnHome !== false).length} Active
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1.5">
               <Link
@@ -304,9 +309,27 @@ export default function HomeDashboard() {
                 Restore Day 01, Day 02, Day 03
               </button>
             </div>
+          ) : routines.filter((r) => r.showOnHome !== false).length === 0 ? (
+            <div className="text-center py-8 border border-dashed border-zinc-800 rounded-2xl p-6 bg-zinc-900/30 space-y-2.5">
+              <Layers className="w-7 h-7 text-zinc-600 mx-auto" />
+              <p className="text-xs font-bold text-zinc-300">
+                No routines selected for Home Dashboard
+              </p>
+              <p className="text-[11px] text-zinc-500 max-w-xs mx-auto">
+                You currently have all routines hidden from the home screen. Go to Routines Hub to select which routines to display here.
+              </p>
+              <Link
+                href="/routines"
+                className="mt-1 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-500 text-zinc-950 text-xs font-black"
+              >
+                <span>Select Routines in Hub</span>
+              </Link>
+            </div>
           ) : (
             <div className="space-y-3">
-              {routines.map((routine) => {
+              {routines
+                .filter((r) => r.showOnHome !== false)
+                .map((routine) => {
                 const isExpanded = expandedRoutineId === routine.id;
                 return (
                   <div
