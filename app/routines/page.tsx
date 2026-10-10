@@ -359,7 +359,7 @@ export default function RoutinesPage() {
 
                         <button
                           type="button"
-                          onClick={() => setEditingRoutine(routine)}
+                          onClick={() => router.push(`/routines/${routine.id}/edit`)}
                           className="w-8 h-8 rounded-lg bg-zinc-950 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-emerald-400 flex items-center justify-center transition-colors"
                           title={routine.isSystem ? "Customize Routine" : "Edit Routine"}
                         >

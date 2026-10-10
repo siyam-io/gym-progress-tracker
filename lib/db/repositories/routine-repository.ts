@@ -84,6 +84,14 @@ export async function getRoutinesWithExercises(): Promise<RoutineWithExercises[]
 }
 
 /**
+ * Fetch a single routine along with exercises by ID
+ */
+export async function getRoutineWithExercises(routineId: string): Promise<RoutineWithExercises | null> {
+  const all = await getRoutinesWithExercises();
+  return all.find((r) => r.id === routineId) || null;
+}
+
+/**
  * Create a new custom routine and save to Dexie & sync queue
  */
 export async function createCustomRoutine(name: string, exerciseIds: string[]): Promise<LocalRoutine> {
