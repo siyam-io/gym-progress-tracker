@@ -121,7 +121,7 @@ export function CardioSetRow({
           <input
             type="number"
             inputMode="decimal"
-            step="0.1"
+            step="any"
             value={distanceKm || ""}
             onChange={(e) => {
               const val = parseFloat(e.target.value);

@@ -299,7 +299,7 @@ export function DailyWeightCard() {
 
                   <input
                     type="number"
-                    step="0.1"
+                    step="any"
                     value={inputWeight || ""}
                     onChange={(e) => setInputWeight(parseFloat(e.target.value) || 0)}
                     className="w-24 text-center font-mono font-black text-3xl bg-transparent text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 rounded-lg [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"

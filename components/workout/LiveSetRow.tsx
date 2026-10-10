@@ -101,7 +101,7 @@ export function LiveSetRow({
         <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1 sm:px-1.5 h-8 sm:h-9 focus-within:border-emerald-500 transition-colors relative min-w-0">
           <input
             type="number"
-            step="0.5"
+            step="any"
             inputMode="decimal"
             value={setLog.weight === 0 ? "" : setLog.weight}
             placeholder={

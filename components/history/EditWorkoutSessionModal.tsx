@@ -669,7 +669,7 @@ export function EditWorkoutSessionModal({
                               <div className="flex items-center bg-zinc-950 border border-zinc-750 rounded-lg px-1.5 py-1">
                                 <input
                                   type="number"
-                                  step="0.5"
+                                  step="any"
                                   min="0"
                                   value={set.weight}
                                   onChange={(e) =>
