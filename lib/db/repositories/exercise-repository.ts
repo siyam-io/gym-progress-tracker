@@ -9,6 +9,7 @@ import {
   ExerciseHistorySession,
   ExerciseDetailHistory,
 } from "@/types/workout";
+import { formatLocalDate } from "@/lib/utils/date";
 
 /**
  * Create custom exercise with outbox sync
@@ -135,7 +136,7 @@ export async function getExerciseDetailHistory(
       if (s.reps > maxReps) maxReps = s.reps;
       if (e1rm > highest1RM) highest1RM = e1rm;
 
-      const dateKey = new Date(s.createdAt).toISOString().slice(0, 10);
+      const dateKey = formatLocalDate(new Date(s.createdAt));
       const currProg = progressionMap.get(dateKey) || 0;
       if (e1rm > currProg) progressionMap.set(dateKey, e1rm);
 

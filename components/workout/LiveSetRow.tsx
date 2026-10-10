@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Check, Flame, Trophy, Minus, Plus, ChevronDown, Trash2 } from "lucide-react";
-import { LocalSetLog, SetType } from "@/lib/db/dexie";
+import { LocalSetLog, SetType, isBodyweightExercise } from "@/lib/db/dexie";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
 
 interface LiveSetRowProps {
@@ -10,15 +10,20 @@ interface LiveSetRowProps {
   exerciseName?: string;
   setLog: LocalSetLog;
   ghostData?: { weight: number; reps: number };
+  isBodyweight?: boolean;
   onDelete?: () => void;
 }
 
 export function LiveSetRow({
   exerciseId,
+  exerciseName,
   setLog,
   ghostData,
+  isBodyweight,
 }: LiveSetRowProps) {
-  const { updateSet, toggleSetCompleted, removeSet } = useWorkoutStore();
+  const { updateSet, toggleSetCompleted, removeSet, userBodyWeight } = useWorkoutStore();
+  const effectiveBw = userBodyWeight || 58.3;
+  const isBw = isBodyweight ?? isBodyweightExercise({ name: exerciseName });
   const [showStepperDrawer, setShowStepperDrawer] = useState(false);
 
   const handleWeightDelta = (delta: number) => {
@@ -61,42 +66,84 @@ export function LiveSetRow({
       )}
 
       {/* Main Set Row Grid - Strict Single-Line Alignment */}
-      <div className="grid grid-cols-[32px_56px_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-2 min-h-[48px]">
+      <div className="grid grid-cols-[28px_48px_1fr_1fr_24px_34px_22px] sm:grid-cols-[32px_56px_1fr_1fr_28px_36px_24px] gap-1 sm:gap-2 items-center px-1 sm:px-2 py-1.5 sm:py-2 min-h-[44px] sm:min-h-[48px]">
         {/* 1. Set Number & Type Trigger */}
         <button
           type="button"
           onClick={() => setShowStepperDrawer((prev) => !prev)}
-          className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
+          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold text-[11px] sm:text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
           title="Change Set Type & Adjustments"
         >
           {currentBadge.label}
         </button>
 
         {/* 2. Ghost Previous Indicator */}
-        <div className="text-center truncate px-0.5" title={ghostData ? `${ghostData.weight}kg × ${ghostData.reps}` : "No previous data"}>
-          <span className="text-[11px] font-mono font-medium text-zinc-400">
-            {ghostData ? `${ghostData.weight}k × ${ghostData.reps}` : "—"}
+        <div
+          className="text-center truncate px-0.5"
+          title={
+            ghostData
+              ? ghostData.weight === 0
+                ? `BW × ${ghostData.reps}`
+                : `${ghostData.weight}kg × ${ghostData.reps}`
+              : "No previous data"
+          }
+        >
+          <span className="text-[10px] sm:text-[11px] font-mono font-medium text-zinc-400">
+            {ghostData
+              ? ghostData.weight === 0
+                ? `BW×${ghostData.reps}`
+                : `${ghostData.weight}k×${ghostData.reps}`
+              : "—"}
           </span>
         </div>
 
         {/* 3. Weight Input */}
-        <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1.5 h-9 focus-within:border-emerald-500 transition-colors">
+        <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1 sm:px-1.5 h-8 sm:h-9 focus-within:border-emerald-500 transition-colors relative min-w-0">
           <input
             type="number"
             step="0.5"
             inputMode="decimal"
             value={setLog.weight === 0 ? "" : setLog.weight}
-            placeholder={ghostData ? `${ghostData.weight}` : "0"}
+            placeholder={
+              ghostData
+                ? `${ghostData.weight}`
+                : isBw
+                ? `${effectiveBw}`
+                : "0"
+            }
             onChange={(e) => {
               const val = parseFloat(e.target.value);
               void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : val });
             }}
             className="w-full text-center bg-transparent text-xs sm:text-sm font-semibold font-mono text-zinc-100 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
+          {isBw && (
+            <button
+              type="button"
+              onClick={() => {
+                const isCurrentlyBw = Math.abs(setLog.weight - effectiveBw) < 0.1;
+                void updateSet(exerciseId, setLog.id, { weight: isCurrentlyBw ? 0 : effectiveBw });
+              }}
+              title={
+                Math.abs(setLog.weight - effectiveBw) < 0.1
+                  ? `Bodyweight set (${effectiveBw}kg). Tap for 0kg.`
+                  : `Tap to set Bodyweight (${effectiveBw}kg)`
+              }
+              className={`text-[8px] sm:text-[9px] font-black px-0.5 sm:px-1 py-0.5 rounded transition-all shrink-0 ml-0.5 ${
+                Math.abs(setLog.weight - effectiveBw) < 0.1
+                  ? "bg-emerald-500 text-zinc-950 font-black shadow-sm shadow-emerald-500/20"
+                  : setLog.weight === 0
+                  ? "bg-zinc-800 text-zinc-400 hover:text-emerald-400"
+                  : "bg-emerald-950/50 text-emerald-400 border border-emerald-500/30"
+              }`}
+            >
+              BW
+            </button>
+          )}
         </div>
 
         {/* 4. Reps Input */}
-        <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1.5 h-9 focus-within:border-emerald-500 transition-colors">
+        <div className="flex items-center bg-zinc-950/70 border border-zinc-800 rounded-lg px-1 sm:px-1.5 h-8 sm:h-9 focus-within:border-emerald-500 transition-colors min-w-0">
           <input
             type="number"
             inputMode="numeric"
@@ -114,7 +161,7 @@ export function LiveSetRow({
         <button
           type="button"
           onClick={() => setShowStepperDrawer((prev) => !prev)}
-          className={`w-7 h-8 rounded-lg flex items-center justify-center border transition-colors ${
+          className={`w-6 h-7 sm:w-7 sm:h-8 rounded-lg flex items-center justify-center border transition-colors ${
             showStepperDrawer
               ? "bg-zinc-800 border-zinc-600 text-zinc-200"
               : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-200"
@@ -132,7 +179,7 @@ export function LiveSetRow({
         <button
           type="button"
           onClick={() => void toggleSetCompleted(exerciseId, setLog.id)}
-          className={`w-9 h-8 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
+          className={`w-8 h-8 sm:w-9 sm:h-8 rounded-lg flex items-center justify-center transition-all duration-200 active:scale-95 ${
             setLog.isCompleted
               ? "bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/30 font-bold"
               : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200 border border-zinc-700/60"
@@ -140,7 +187,7 @@ export function LiveSetRow({
           title={setLog.isCompleted ? "Set Completed" : "Mark Set Complete"}
         >
           <Check
-            className={`w-4 h-4 stroke-[3] transition-transform ${
+            className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[3] transition-transform ${
               setLog.isCompleted ? "scale-110" : ""
             }`}
           />
@@ -150,7 +197,7 @@ export function LiveSetRow({
         <button
           type="button"
           onClick={() => void removeSet(exerciseId, setLog.id)}
-          className="w-6 h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
+          className="w-5 h-7 sm:w-6 sm:h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
           title="Delete this set"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -160,10 +207,63 @@ export function LiveSetRow({
       {/* One-Thumb Gym Quick-Stepper Drawer / Bottom Sheet */}
       {showStepperDrawer && (
         <div className="p-3 pt-1 border-t border-zinc-800/80 bg-zinc-950/70 rounded-b-xl flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Quick Bodyweight Options for Calisthenics / Free Hand Exercises */}
+          {isBw && (
+            <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-zinc-900/60 border border-emerald-500/25">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-bold text-emerald-400 flex items-center gap-1">
+                  Bodyweight Presets
+                </span>
+                <span className="font-mono text-zinc-400 text-[10px]">
+                  Your BW: <strong className="text-zinc-200">{effectiveBw} kg</strong>
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => void updateSet(exerciseId, setLog.id, { weight: effectiveBw })}
+                  className={`h-9 min-h-[40px] rounded-lg font-bold text-xs flex items-center justify-center gap-1 border transition-all ${
+                    Math.abs(setLog.weight - effectiveBw) < 0.1
+                      ? "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-sm"
+                      : "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-200"
+                  }`}
+                >
+                  <span>BW ({effectiveBw}k)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void updateSet(exerciseId, setLog.id, { weight: 0 })}
+                  className={`h-9 min-h-[40px] rounded-lg font-bold text-xs flex items-center justify-center gap-1 border transition-all ${
+                    setLog.weight === 0
+                      ? "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-sm"
+                      : "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-200"
+                  }`}
+                >
+                  <span>0 kg (Body Only)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void updateSet(exerciseId, setLog.id, {
+                      weight: Math.round((effectiveBw + 5) * 10) / 10,
+                    });
+                  }}
+                  className={`h-9 min-h-[40px] rounded-lg font-bold text-xs flex items-center justify-center gap-1 border transition-all ${
+                    Math.abs(setLog.weight - (effectiveBw + 5)) < 0.1
+                      ? "bg-emerald-500 text-zinc-950 border-emerald-400 shadow-sm"
+                      : "bg-zinc-900 border-zinc-800 hover:bg-zinc-800 text-zinc-200"
+                  }`}
+                >
+                  <span>+5kg Weighted</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Quick Weight Adjustments (Thumb Friendly) */}
           <div className="flex flex-col gap-1.5">
             <span className="text-[11px] font-semibold text-zinc-400 flex items-center justify-between">
-              <span>Quick Weight (kg)</span>
+              <span>{isBw ? "Adjust Weight / Added Load" : "Quick Weight (kg)"}</span>
               <span className="font-mono text-emerald-400">{setLog.weight} kg</span>
             </span>
             <div className="grid grid-cols-4 gap-1.5">

@@ -236,38 +236,29 @@ export function HistoryFeed({
             )}
 
             {/* Bottom Row: Metrics & Quick Repeat Action */}
-            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 text-xs w-full">
-              <div className="flex items-center gap-3 text-zinc-400 font-mono font-bold">
-                <span className="flex items-center gap-1 text-zinc-300">
-                  <Clock className="w-3.5 h-3.5 text-zinc-500" />
+            <div className="flex items-center justify-between pt-2 border-t border-zinc-800/60 w-full gap-2 min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2.5 text-zinc-400 font-mono font-bold text-[10px] sm:text-[11px] min-w-0 whitespace-nowrap">
+                <span className="flex items-center gap-1 text-zinc-300 shrink-0 whitespace-nowrap">
+                  <Clock className="w-3 h-3 text-zinc-500 shrink-0" />
                   {formatDuration(item.durationSec)}
                 </span>
-                <span>•</span>
-                <span className="flex items-center gap-1 text-emerald-400">
-                  <Dumbbell className="w-3.5 h-3.5 text-zinc-500" />
+                <span className="text-zinc-600 shrink-0">•</span>
+                <span className="flex items-center gap-1 text-emerald-400 shrink-0 whitespace-nowrap">
+                  <Dumbbell className="w-3 h-3 text-zinc-500 shrink-0" />
                   {item.totalVolume.toLocaleString()} kg
                 </span>
-                <span>•</span>
-                <span className="text-zinc-400">{item.completedSetsCount} sets</span>
+                <span className="text-zinc-600 shrink-0">•</span>
+                <span className="text-zinc-400 shrink-0 whitespace-nowrap">{item.completedSetsCount} sets</span>
               </div>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={(e) => onDirectEdit(item.id, e)}
-                  className="px-2.5 py-1 rounded-lg bg-zinc-800/90 hover:bg-zinc-700 text-zinc-300 hover:text-emerald-400 text-[11px] font-bold flex items-center gap-1 transition-colors active:scale-95"
-                  title="Edit workout details and sets"
-                >
-                  <Pencil className="w-3 h-3" />
-                  <span>Edit</span>
-                </button>
+              <div className="flex items-center shrink-0">
                 <button
                   type="button"
                   onClick={(e) => onRepeatWorkout(item, e)}
-                  className="px-2.5 py-1 rounded-lg bg-zinc-800/90 hover:bg-emerald-500 hover:text-zinc-950 text-zinc-300 text-[11px] font-bold flex items-center gap-1 transition-colors active:scale-95"
+                  className="px-2 py-1 sm:px-2.5 sm:py-1 rounded-lg bg-zinc-800/90 hover:bg-emerald-500 hover:text-zinc-950 text-zinc-300 text-[10px] sm:text-[11px] font-bold flex items-center gap-1 transition-colors active:scale-95 shrink-0 whitespace-nowrap"
                   title="Run this workout again on gym floor"
                 >
-                  <RotateCcw className="w-3 h-3" />
+                  <RotateCcw className="w-3 h-3 shrink-0" />
                   <span>Rerun</span>
                 </button>
               </div>

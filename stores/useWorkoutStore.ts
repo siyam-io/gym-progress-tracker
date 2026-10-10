@@ -9,6 +9,8 @@ import {
   getPreviousExerciseSets,
   enqueueSyncMutation,
   isCardioExercise,
+  isBodyweightExercise,
+  getLatestBodyWeightLog,
 } from "@/lib/db/dexie";
 import { checkIfPR } from "@/lib/utils/pr-calculator";
 import { playPRFanfare, playTimerCompleteSound, playTapSound } from "@/lib/utils/audio-feedback";
@@ -35,12 +37,14 @@ export interface WorkoutStore {
   isPaused: boolean;
   isLoading: boolean;
   currentUserId: string | null;
+  userBodyWeight: number | null;
 
   // Drift-Free Rest Timer State
   restTimer: RestTimerState;
 
   // Actions - Session
   setCurrentUserId: (userId: string | null) => void;
+  fetchUserBodyWeight: () => Promise<number>;
   initializeOrRestore: () => Promise<void>;
   startWorkout: (title?: string, initialExercises?: LocalExercise[], routineId?: string) => Promise<void>;
   pauseWorkout: () => void;
@@ -72,8 +76,22 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   isPaused: false,
   isLoading: true,
   currentUserId: null,
+  userBodyWeight: null,
 
   setCurrentUserId: (userId) => set({ currentUserId: userId }),
+
+  fetchUserBodyWeight: async () => {
+    try {
+      const latest = await getLatestBodyWeightLog();
+      const bw = latest?.weight ?? 58.3;
+      set({ userBodyWeight: bw });
+      return bw;
+    } catch {
+      const bw = 58.3;
+      set({ userBodyWeight: bw });
+      return bw;
+    }
+  },
 
   restTimer: {
     isRunning: false,
@@ -87,23 +105,61 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     try {
       set({ isLoading: true });
 
-      // Look for an in-progress session in Dexie
-      const inProgressSession = await db.workoutSessions
+      // Load user's latest logged body weight in background
+      void getLatestBodyWeightLog().then((latest) => {
+        if (latest?.weight) {
+          set({ userBodyWeight: latest.weight });
+        }
+      }).catch(() => {});
+
+      // If session is ALREADY active in memory, do NOT overwrite it
+      const current = get();
+      if (current.session && current.session.status === "IN_PROGRESS") {
+        const startTimeMs = new Date(current.session.startTime).getTime();
+        const nowMs = Date.now();
+        const elapsed = (isNaN(startTimeMs) || startTimeMs > nowMs)
+          ? 0
+          : Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
+        set({ workoutElapsedSec: elapsed, isLoading: false });
+        return;
+      }
+
+      // Look for in-progress sessions in Dexie
+      const inProgressSessions = await db.workoutSessions
         .where("status")
         .equals("IN_PROGRESS")
-        .first();
+        .toArray();
 
-      if (!inProgressSession) {
+      if (inProgressSessions.length === 0) {
         set({ isLoading: false });
         return;
       }
 
-      // If session is already loaded in memory, do NOT overwrite or scramble exercise order
-      const current = get();
-      if (current.session?.id === inProgressSession.id && current.exerciseGroups.length > 0) {
-        const startTimeMs = new Date(inProgressSession.startTime).getTime();
-        const elapsed = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
-        set({ workoutElapsedSec: elapsed, isLoading: false });
+      // Sort by startTime descending to pick the newest session
+      inProgressSessions.sort(
+        (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+      );
+      const inProgressSession = inProgressSessions[0];
+
+      // Clean up any extra stale in-progress sessions if there were multiple
+      if (inProgressSessions.length > 1) {
+        for (let i = 1; i < inProgressSessions.length; i++) {
+          const extra = inProgressSessions[i];
+          await db.workoutSessions.delete(extra.id);
+          await db.setLogs.where("sessionId").equals(extra.id).delete();
+        }
+      }
+
+      // Check if session is older than 18 hours (abandoned zombie session)
+      const startTimeMs = new Date(inProgressSession.startTime).getTime();
+      const nowMs = Date.now();
+      const STALE_WORKOUT_MAX_AGE_MS = 18 * 60 * 60 * 1000; // 18 hours
+
+      if (isNaN(startTimeMs) || nowMs - startTimeMs > STALE_WORKOUT_MAX_AGE_MS) {
+        console.warn("[WorkoutStore] Discarding stale in-progress session older than 18h:", inProgressSession.id);
+        await db.workoutSessions.delete(inProgressSession.id);
+        await db.setLogs.where("sessionId").equals(inProgressSession.id).delete();
+        set({ session: null, exerciseGroups: [], workoutElapsedSec: 0, isLoading: false });
         return;
       }
 
@@ -166,8 +222,6 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       }
 
       // Calculate elapsed seconds from session.startTime
-      const startTimeMs = new Date(inProgressSession.startTime).getTime();
-      const nowMs = Date.now();
       const elapsed = Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
 
       set({
@@ -183,6 +237,28 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
   },
 
   startWorkout: async (title = "Gym Workout", initialExercises = [], routineId) => {
+    // 1. Clean up any existing abandoned IN_PROGRESS sessions from Dexie to avoid zombie session conflicts
+    const staleSessions = await db.workoutSessions
+      .where("status")
+      .equals("IN_PROGRESS")
+      .toArray();
+
+    for (const stale of staleSessions) {
+      await db.workoutSessions.delete(stale.id);
+      await db.setLogs.where("sessionId").equals(stale.id).delete();
+    }
+
+    let userBw = get().userBodyWeight;
+    if (!userBw) {
+      try {
+        const latest = await getLatestBodyWeightLog();
+        userBw = latest?.weight ?? 58.3;
+      } catch {
+        userBw = 58.3;
+      }
+      set({ userBodyWeight: userBw });
+    }
+
     const sessionId = uuidv4();
     const nowIso = new Date().toISOString();
 
@@ -215,10 +291,11 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
       return true;
     });
 
-    // If initial exercises provided, populate with default sets (1 set for cardio, 3 for lifting)
+    // If initial exercises provided, populate with default sets (1 set for cardio, 3 for lifting/bodyweight)
     for (let exIdx = 0; exIdx < uniqueInitialExercises.length; exIdx++) {
       const ex = uniqueInitialExercises[exIdx];
       const isCardio = isCardioExercise(ex);
+      const isBodyweight = isBodyweightExercise(ex);
 
       const targetSetsCount = isCardio ? 1 : 3;
       const ghostSets = await getPreviousExerciseSets(ex.id);
@@ -227,12 +304,18 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
 
       for (let i = 1; i <= targetSetsCount; i++) {
         const ghost = ghostSets.find((g) => g.setNumber === i);
+        const defaultWeight = isCardio
+          ? (ghost ? ghost.weight : 1.0)
+          : isBodyweight
+          ? (ghost ? ghost.weight : (userBw || 58.3))
+          : (ghost ? ghost.weight : 20);
+
         const setLog: LocalSetLog = {
           id: uuidv4(),
           sessionId,
           exerciseId: ex.id,
           setNumber: i,
-          weight: isCardio ? (ghost ? ghost.weight : 1.0) : (ghost ? ghost.weight : 20),
+          weight: defaultWeight,
           reps: isCardio ? (ghost ? ghost.reps : 10) : (ghost ? ghost.reps : 10),
           rpe: isCardio ? (ghost?.rpe ?? 5) : 8,
           setType: "NORMAL",
@@ -270,7 +353,10 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const { isPaused, session } = get();
     if (!isPaused && session?.startTime) {
       const startTimeMs = new Date(session.startTime).getTime();
-      const elapsed = Math.max(0, Math.floor((Date.now() - startTimeMs) / 1000));
+      const nowMs = Date.now();
+      const elapsed = (isNaN(startTimeMs) || startTimeMs > nowMs)
+        ? 0
+        : Math.max(0, Math.floor((nowMs - startTimeMs) / 1000));
       set({ workoutElapsedSec: elapsed });
     }
   },
@@ -283,6 +369,8 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     if (exerciseGroups.some((g) => g.exercise.id === exercise.id)) return;
 
     const isCardio = isCardioExercise(exercise);
+    const isBodyweight = isBodyweightExercise(exercise);
+    const userBw = get().userBodyWeight || 58.3;
     const targetSetsCount = isCardio ? 1 : 3;
     const ghostSets = await getPreviousExerciseSets(exercise.id);
     const nowIso = new Date().toISOString();
@@ -290,12 +378,18 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     const newSets: LocalSetLog[] = [];
     for (let i = 1; i <= targetSetsCount; i++) {
       const ghost = ghostSets.find((g) => g.setNumber === i);
+      const defaultWeight = isCardio
+        ? (ghost ? ghost.weight : 1.0)
+        : isBodyweight
+        ? (ghost ? ghost.weight : userBw)
+        : (ghost ? ghost.weight : 20);
+
       const setLog: LocalSetLog = {
         id: uuidv4(),
         sessionId: session.id,
         exerciseId: exercise.id,
         setNumber: i,
-        weight: isCardio ? (ghost ? ghost.weight : 1.0) : (ghost ? ghost.weight : 20),
+        weight: defaultWeight,
         reps: isCardio ? (ghost ? ghost.reps : 10) : (ghost ? ghost.reps : 10),
         rpe: isCardio ? (ghost?.rpe ?? 5) : 8,
         setType: "NORMAL",
@@ -384,11 +478,21 @@ export const useWorkoutStore = create<WorkoutStore>((set, get) => ({
     if (!group) return;
 
     const isCardio = isCardioExercise(group.exercise);
+    const isBodyweight = isBodyweightExercise(group.exercise);
+    const userBw = get().userBodyWeight || 58.3;
     const nextSetNumber = group.sets.length + 1;
     const previousSet = group.sets[group.sets.length - 1];
     const ghost = group.ghostSets.find((g) => g.setNumber === nextSetNumber);
 
-    const defaultWeight = previousSet ? previousSet.weight : ghost ? ghost.weight : (isCardio ? 1.0 : 20);
+    const defaultWeight = previousSet
+      ? previousSet.weight
+      : ghost
+      ? ghost.weight
+      : isCardio
+      ? 1.0
+      : isBodyweight
+      ? userBw
+      : 20;
     const defaultReps = previousSet ? previousSet.reps : ghost ? ghost.reps : 10;
     const defaultRpe = previousSet?.rpe ?? (ghost?.rpe ?? (isCardio ? 5 : 8));
     const nowIso = new Date().toISOString();

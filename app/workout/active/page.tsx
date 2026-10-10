@@ -17,7 +17,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
-import { initializeLocalDb, processSyncQueue, LocalExercise, isCardioExercise } from "@/lib/db/dexie";
+import { initializeLocalDb, processSyncQueue, LocalExercise, isCardioExercise, isBodyweightExercise } from "@/lib/db/dexie";
 import { LiveSetRow } from "@/components/workout/LiveSetRow";
 import { CardioSetRow } from "@/components/workout/CardioSetRow";
 import { RestTimerBar } from "@/components/workout/RestTimerBar";
@@ -27,6 +27,7 @@ import { AnatomicalFormModal } from "@/components/exercises/AnatomicalFormModal"
 import { PlateCalculatorModal } from "@/components/workout/PlateCalculatorModal";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { toast } from "@/stores/useToastStore";
+import { formatDuration } from "@/lib/utils/date";
 
 export default function ActiveWorkoutPage() {
   const router = useRouter();
@@ -85,12 +86,6 @@ export default function ActiveWorkoutPage() {
     }, 1000);
     return () => clearInterval(interval);
   }, [session, incrementWorkoutElapsed]);
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
 
   // Auto-redirect to home if no active session and not showing completed summary
   useEffect(() => {
@@ -241,14 +236,14 @@ export default function ActiveWorkoutPage() {
 
   // Active Live Workout Interface
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between pb-32 max-w-md mx-auto">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between pb-32 w-full max-w-md mx-auto overflow-x-hidden min-w-0">
       {/* Sticky Gym Floor Header */}
-      <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-40 bg-zinc-950/90 backdrop-blur-md border-b border-zinc-800/80 px-2.5 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-1.5 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="w-9 h-9 min-w-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-emerald-400 active:scale-95 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-emerald-400 active:scale-95 transition-colors"
             title="Minimize to Dashboard"
           >
             <ChevronDown className="w-4 h-4" />
@@ -257,39 +252,40 @@ export default function ActiveWorkoutPage() {
           <button
             type="button"
             onClick={() => setShowDiscardModal(true)}
-            className="w-9 h-9 min-w-9 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-red-400 active:scale-95 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-red-400 active:scale-95 transition-colors"
             title="Discard Workout"
           >
             <Trash2 className="w-4 h-4" />
           </button>
-          <div>
-            <h1 className="text-base font-black tracking-tight text-zinc-100 leading-none">
+
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm sm:text-base font-black tracking-tight text-zinc-100 leading-tight truncate">
               {session.title}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-mono font-bold text-emerald-400 flex items-center gap-1">
+            <div className="flex items-center gap-1.5 sm:gap-2 mt-0.5 text-[10px] sm:text-xs">
+              <span className="font-mono font-bold text-emerald-400 flex items-center gap-1 shrink-0">
                 <Clock className="w-3 h-3 text-emerald-400" />
                 {formatDuration(workoutElapsedSec)}
               </span>
-              <span className="text-zinc-600 text-xs">•</span>
+              <span className="text-zinc-600">•</span>
               <span
-                className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                className={`font-bold uppercase tracking-wider flex items-center gap-1 shrink-0 ${
                   isOnline ? "text-emerald-500" : "text-amber-400"
                 }`}
               >
                 {isOnline ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
-                {isOnline ? "Online" : "Local Sync"}
+                <span>{isOnline ? "Online" : "Local"}</span>
               </span>
             </div>
           </div>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             type="button"
             onClick={() => setShowPlateCalculator(true)}
-            className="h-10 w-10 min-w-10 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-emerald-500/40 text-zinc-300 hover:text-emerald-400 flex items-center justify-center transition-colors shadow-sm"
+            className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-emerald-500/40 text-zinc-300 hover:text-emerald-400 flex items-center justify-center transition-colors shadow-sm"
             title="Barbell Plate Calculator"
           >
             <Disc3 className="w-4 h-4" />
@@ -298,16 +294,16 @@ export default function ActiveWorkoutPage() {
           <button
             type="button"
             onClick={handleFinish}
-            className="h-10 min-h-[44px] px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+            className="h-8 sm:h-9 min-h-[32px] sm:min-h-[36px] px-2.5 sm:px-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1 shadow-md shadow-emerald-500/20 active:scale-95 transition-all shrink-0"
           >
-            <CheckCircle2 className="w-4 h-4 stroke-[2.5]" />
+            <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
             <span>Finish</span>
           </button>
         </div>
       </header>
 
       {/* Main Exercise Cards List */}
-      <main className="p-4 space-y-5 flex-1">
+      <main className="p-3 sm:p-4 space-y-4 sm:space-y-5 flex-1 w-full min-w-0">
         {exerciseGroups.length === 0 ? (
           <div className="py-16 text-center border-2 border-dashed border-zinc-800 rounded-3xl p-6 flex flex-col items-center gap-3">
             <Dumbbell className="w-10 h-10 text-zinc-600" />
@@ -333,7 +329,7 @@ export default function ActiveWorkoutPage() {
             return (
               <section
                 key={group.exercise.id}
-                className={`border rounded-2xl p-3.5 space-y-3 shadow-md transition-all ${
+                className={`border rounded-2xl p-2.5 sm:p-3.5 space-y-2.5 sm:space-y-3 shadow-md transition-all overflow-hidden ${
                   isCardio
                     ? "bg-zinc-900/70 border-cyan-900/40 hover:border-cyan-700/50"
                     : "bg-zinc-900/60 border-zinc-800 hover:border-zinc-700/80"
@@ -404,7 +400,7 @@ export default function ActiveWorkoutPage() {
 
                 {/* Sets Header Labels - 100% Matching Grid Template with Rows */}
                 {isCardio ? (
-                  <div className="grid grid-cols-[30px_52px_1fr_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-cyan-400/80">
+                  <div className="grid grid-cols-[26px_44px_1fr_1fr_1fr_24px_32px_20px] sm:grid-cols-[30px_52px_1fr_1fr_1fr_28px_36px_24px] gap-1 sm:gap-1.5 items-center px-1 sm:px-2 py-1 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider text-cyan-400/80">
                     <span className="text-center">Rnd</span>
                     <span className="text-center">Prev</span>
                     <span className="text-center">Time</span>
@@ -415,7 +411,7 @@ export default function ActiveWorkoutPage() {
                     <span></span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-[32px_56px_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                  <div className="grid grid-cols-[28px_48px_1fr_1fr_24px_34px_22px] sm:grid-cols-[32px_56px_1fr_1fr_28px_36px_24px] gap-1 sm:gap-2 items-center px-1 sm:px-2 py-1 text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-zinc-500">
                     <span className="text-center">Set</span>
                     <span className="text-center">Prev</span>
                     <span className="text-center">Weight</span>
@@ -448,6 +444,7 @@ export default function ActiveWorkoutPage() {
                         exerciseName={group.exercise.name}
                         setLog={setLog}
                         ghostData={ghost}
+                        isBodyweight={isBodyweightExercise(group.exercise)}
                       />
                     );
                   })}

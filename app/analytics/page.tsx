@@ -13,6 +13,7 @@ import {
   LocalSetLog,
   LocalWorkoutSession,
   initializeLocalDb,
+  formatLocalDate,
 } from "@/lib/db/dexie";
 import { calculate1RM } from "@/lib/utils/pr-calculator";
 
@@ -201,7 +202,7 @@ export default function AnalyticsPage() {
     const dateMap = new Map<string, { e1rm: number; weight: number; reps: number }>();
 
     for (const s of exSets) {
-      const dateKey = new Date(s.createdAt).toISOString().slice(0, 10);
+      const dateKey = formatLocalDate(new Date(s.createdAt));
       const e1rm = calculate1RM(s.weight, s.reps);
       const current = dateMap.get(dateKey);
 

@@ -16,6 +16,7 @@ import {
   SessionDetailData,
   SetType,
   isCardioExercise,
+  isBodyweightExercise,
 } from "@/lib/db/dexie";
 import { calculate1RM } from "@/lib/utils/pr-calculator";
 import { useWorkoutStore } from "@/stores/useWorkoutStore";
@@ -292,7 +293,10 @@ export function SessionDetailModal({
                                 </span>
                               ) : (
                                 <span className="font-semibold text-zinc-100">
-                                  {s.weight}kg × {s.reps}
+                                  {isBodyweightExercise(group.exercise) && s.weight === 0
+                                    ? "BW"
+                                    : `${s.weight}kg`}{" "}
+                                  × {s.reps}
                                 </span>
                               )}
 

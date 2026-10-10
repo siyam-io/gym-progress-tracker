@@ -12,6 +12,7 @@ import {
   History,
   X,
   Trash2,
+  LineChart,
 } from "lucide-react";
 import {
   saveBodyWeightLog,
@@ -21,6 +22,8 @@ import {
 } from "@/lib/db/dexie";
 import { useSession } from "next-auth/react";
 import { toast } from "@/stores/useToastStore";
+import { formatLocalDate } from "@/lib/utils/date";
+import { WeightTrendChart } from "./WeightTrendChart";
 
 export function DailyWeightCard() {
   const { data: session } = useSession();
@@ -38,10 +41,9 @@ export function DailyWeightCard() {
 
   const [showLogModal, setShowLogModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showChart, setShowChart] = useState(true);
   const [inputWeight, setInputWeight] = useState<number>(65.0);
-  const [inputDate, setInputDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
+  const [inputDate, setInputDate] = useState<string>(() => formatLocalDate());
   const [inputNote, setInputNote] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -68,7 +70,7 @@ export function DailyWeightCard() {
     };
   }, []);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = formatLocalDate();
   const isLoggedToday = stats.latestDate === todayStr;
 
   const handleQuickStep = (delta: number) => {
@@ -130,15 +132,33 @@ export function DailyWeightCard() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setShowHistoryModal(true)}
-          className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-[11px] font-bold text-zinc-400 hover:text-zinc-200 transition-colors"
-          title="View Weight History"
-        >
-          <History className="w-3 h-3 text-emerald-400" />
-          <span>History</span>
-        </button>
+        <div className="flex items-center gap-1.5">
+          {stats.history.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowChart((prev) => !prev)}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+                showChart
+                  ? "bg-emerald-500/15 border border-emerald-500/30 text-emerald-400"
+                  : "bg-zinc-800/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
+              }`}
+              title={showChart ? "Hide Weight Chart" : "Show Weight Chart"}
+            >
+              <LineChart className="w-3 h-3 text-emerald-400" />
+              <span>{showChart ? "Graph" : "Show Graph"}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setShowHistoryModal(true)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-zinc-800/80 hover:bg-zinc-800 text-[11px] font-bold text-zinc-400 hover:text-zinc-200 transition-colors"
+            title="View Weight History"
+          >
+            <History className="w-3 h-3 text-emerald-400" />
+            <span>History</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Stats Row */}
@@ -208,7 +228,14 @@ export function DailyWeightCard() {
         </button>
       </div>
 
-      {/* Mini 7-point visual trend indicator */}
+      {/* Visual Weight Trend Graph */}
+      {showChart && stats.history.length > 0 && (
+        <div className="my-2 pt-1 border-b border-zinc-800/60 pb-3">
+          <WeightTrendChart history={stats.history} />
+        </div>
+      )}
+
+      {/* Mini 5-point visual trend indicator */}
       {stats.history.length > 0 && (
         <div className="pt-2 flex items-center justify-between text-[10px] text-zinc-500">
           <span>Recent:</span>
@@ -355,6 +382,12 @@ export function DailyWeightCard() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+
+            {stats.history.length > 0 && (
+              <div className="py-2 border-b border-zinc-800/80 shrink-0">
+                <WeightTrendChart history={stats.history} />
+              </div>
+            )}
 
             <div className="overflow-y-auto divide-y divide-zinc-800/60 my-2 flex-1">
               {stats.history.length === 0 ? (

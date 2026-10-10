@@ -1,6 +1,7 @@
 import { db } from "@/lib/db/dexie";
 import { enqueueSyncMutation } from "@/lib/sync/client-sync";
 import { LocalBodyWeightLog } from "@/types/workout";
+import { formatLocalDate } from "@/lib/utils/date";
 
 /**
  * Save daily body weight entry into Dexie with outbox mutation and cloud sync
@@ -13,7 +14,7 @@ export async function saveBodyWeightLog(data: {
   note?: string | null;
   userId?: string | null;
 }): Promise<LocalBodyWeightLog> {
-  const date = data.date || new Date().toISOString().slice(0, 10);
+  const date = data.date || formatLocalDate();
   const now = new Date().toISOString();
 
   const existing = await db.bodyWeightLogs

@@ -103,3 +103,4 @@ export * from "@/lib/db/repositories/workout-repository";
 export * from "@/lib/db/repositories/exercise-repository";
 export * from "@/lib/db/repositories/weight-repository";
 export * from "@/lib/db/repositories/backup-repository";
+export * from "@/lib/utils/date";

@@ -92,6 +92,16 @@ export default function HomeDashboard() {
     router.push("/workout/active");
   };
 
+  const handleStartEmptyWorkout = async () => {
+    const active = useWorkoutStore.getState().session;
+    if (active && active.status === "IN_PROGRESS") {
+      router.push("/workout/active");
+      return;
+    }
+    await startWorkout("Empty Gym Floor", []);
+    router.push("/workout/active");
+  };
+
   const handleDeleteRoutine = (e: React.MouseEvent, routineId: string, routineName: string) => {
     e.stopPropagation();
     setRoutineToDelete({ id: routineId, name: routineName });
@@ -240,7 +250,7 @@ export default function HomeDashboard() {
           </div>
           <button
             type="button"
-            onClick={() => void router.push("/workout/active")}
+            onClick={() => void handleStartEmptyWorkout()}
             className="w-12 h-12 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-emerald-500/30 shrink-0"
             title="Start Empty Workout"
           >

@@ -23,6 +23,8 @@ import {
   updateWorkoutSessionWithSets,
   EditSetInput,
   isCardioExercise,
+  isBodyweightExercise,
+  getLatestBodyWeightLog,
 } from "@/lib/db/dexie";
 import { toast } from "@/stores/useToastStore";
 
@@ -69,10 +71,16 @@ export function EditWorkoutSessionModal({
   const [groups, setGroups] = useState<WorkingGroup[]>([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Exercise picker drawer state
   const [showAddExerciseDrawer, setShowAddExerciseDrawer] = useState(false);
   const [allExercises, setAllExercises] = useState<LocalExercise[]>([]);
   const [searchExerciseQuery, setSearchExerciseQuery] = useState("");
+  const [userBodyWeight, setUserBodyWeight] = useState(58.3);
+
+  useEffect(() => {
+    void getLatestBodyWeightLog().then((latest) => {
+      if (latest?.weight) setUserBodyWeight(latest.weight);
+    });
+  }, []);
 
   // React 19 recommended pattern: adjust state when sessionData prop changes
   if (sessionData && sessionData.session.id !== prevSessionId) {
@@ -197,10 +205,12 @@ export function EditWorkoutSessionModal({
     }
 
     const isCardio = isCardioExercise(exercise);
+    const isBodyweight = isBodyweightExercise(exercise);
+    const defaultWeight = isCardio ? 1.0 : isBodyweight ? userBodyWeight : 20;
     const defaultSets: WorkingSet[] = [
-      { tempId: `set-${exercise.id}-1`, setNumber: 1, weight: isCardio ? 1.0 : 20, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
-      { tempId: `set-${exercise.id}-2`, setNumber: 2, weight: isCardio ? 1.0 : 20, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
-      { tempId: `set-${exercise.id}-3`, setNumber: 3, weight: isCardio ? 1.0 : 20, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
+      { tempId: `set-${exercise.id}-1`, setNumber: 1, weight: defaultWeight, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
+      { tempId: `set-${exercise.id}-2`, setNumber: 2, weight: defaultWeight, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
+      { tempId: `set-${exercise.id}-3`, setNumber: 3, weight: defaultWeight, reps: 10, rpe: isCardio ? 5 : null, setType: "NORMAL", isCompleted: true },
     ];
 
     setGroups((prev) => [...prev, { exercise, sets: defaultSets }]);
@@ -228,13 +238,14 @@ export function EditWorkoutSessionModal({
         const ex = exMap.get(item.exerciseId);
         if (!ex) continue;
         const isCardio = isCardioExercise(ex);
+        const isBodyweight = isBodyweightExercise(ex);
         const count = item.targetSets || (isCardio ? 1 : 3);
         const sets: WorkingSet[] = [];
         for (let i = 1; i <= count; i++) {
           sets.push({
             tempId: `set-${ex.id}-${i}-${Date.now()}`,
             setNumber: i,
-            weight: isCardio ? 1.0 : 20,
+            weight: isCardio ? 1.0 : isBodyweight ? userBodyWeight : 20,
             reps: 10,
             rpe: isCardio ? 5 : null,
             setType: "NORMAL",
@@ -669,6 +680,24 @@ export function EditWorkoutSessionModal({
                                   className="w-full bg-transparent text-xs font-mono font-bold text-zinc-100 focus:outline-none text-right"
                                 />
                                 <span className="text-[10px] text-zinc-500 ml-0.5">kg</span>
+                                {isBodyweightExercise(group.exercise) && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleUpdateSet(groupIdx, setIdx, {
+                                        weight: Math.abs(set.weight - userBodyWeight) < 0.1 ? 0 : userBodyWeight,
+                                      })
+                                    }
+                                    title={`Toggle Body Weight (${userBodyWeight}kg)`}
+                                    className={`text-[8px] font-black px-1 py-0.5 rounded ml-1 transition-colors shrink-0 ${
+                                      Math.abs(set.weight - userBodyWeight) < 0.1
+                                        ? "bg-emerald-500 text-zinc-950 font-black"
+                                        : "bg-zinc-800 text-zinc-400 hover:text-emerald-400"
+                                    }`}
+                                  >
+                                    BW
+                                  </button>
+                                )}
                               </div>
 
                               {/* Reps Input */}

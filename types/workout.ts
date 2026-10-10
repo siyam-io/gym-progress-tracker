@@ -163,3 +163,38 @@ export function isCardioExercise(
     name.includes("elliptical")
   );
 }
+
+/**
+ * Checks whether an exercise is bodyweight / calisthenics / free-hand based (Push Up, Pull Up, Dips, etc.)
+ */
+export function isBodyweightExercise(
+  exercise?: { name?: string; category?: string } | null
+): boolean {
+  if (!exercise) return false;
+  if (exercise.category === "BODYWEIGHT") return true;
+  const name = (exercise.name || "").toLowerCase();
+  return (
+    name.includes("push up") ||
+    name.includes("push-up") ||
+    name.includes("pushup") ||
+    name.includes("pull up") ||
+    name.includes("pull-up") ||
+    name.includes("pullup") ||
+    name.includes("chin up") ||
+    name.includes("chin-up") ||
+    name.includes("chinup") ||
+    name.includes("dip") ||
+    name.includes("bodyweight") ||
+    name.includes("calisthenic") ||
+    name.includes("crunch") ||
+    name.includes("sit up") ||
+    name.includes("sit-up") ||
+    name.includes("situp") ||
+    name.includes("plank") ||
+    name.includes("leg raise") ||
+    name.includes("muscle up") ||
+    name.includes("muscle-up") ||
+    name.includes("inverted row") ||
+    name.includes("handstand")
+  );
+}

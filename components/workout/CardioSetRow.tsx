@@ -80,12 +80,12 @@ export function CardioSetRow({
       }`}
     >
       {/* Cardio Set Row Main Grid - Strict Single-Line Alignment */}
-      <div className="grid grid-cols-[30px_52px_1fr_1fr_1fr_28px_36px_24px] gap-1.5 sm:gap-2 items-center px-2 py-2 min-h-[48px]">
+      <div className="grid grid-cols-[26px_44px_1fr_1fr_1fr_24px_32px_20px] sm:grid-cols-[30px_52px_1fr_1fr_1fr_28px_36px_24px] gap-1 sm:gap-1.5 items-center px-1 sm:px-2 py-1.5 sm:py-2 min-h-[44px] sm:min-h-[48px]">
         {/* 1. Interval / Round Index */}
         <button
           type="button"
           onClick={() => setShowSteppers((prev) => !prev)}
-          className={`w-7.5 h-8 min-w-[30px] rounded-lg flex items-center justify-center font-bold text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
+          className={`w-6.5 sm:w-7.5 h-7 sm:h-8 min-w-[26px] sm:min-w-[30px] rounded-lg flex items-center justify-center font-bold text-[10px] sm:text-xs border transition-colors ${currentBadge.bg} ${currentBadge.text}`}
           title="Toggle Quick Steppers & Phase"
         >
           {currentBadge.label}
@@ -96,13 +96,13 @@ export function CardioSetRow({
           className="text-center truncate px-0.5"
           title={ghostData ? `${ghostData.reps}m • ${ghostData.weight}km • L${ghostData.rpe || 1}` : "No previous data"}
         >
-          <span className="text-[10px] font-mono text-zinc-400 font-semibold">
+          <span className="text-[9px] sm:text-[10px] font-mono text-zinc-400 font-semibold">
             {ghostData ? `${ghostData.reps}m•${ghostData.weight}k` : "—"}
           </span>
         </div>
 
         {/* 3. Duration / Minutes Input */}
-        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-cyan-500 rounded-lg px-1 h-9 transition-colors">
+        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-cyan-500 rounded-lg px-0.5 sm:px-1 h-8 sm:h-9 transition-colors min-w-0">
           <input
             type="number"
             inputMode="numeric"
@@ -111,13 +111,13 @@ export function CardioSetRow({
               const val = parseInt(e.target.value, 10);
               void updateSet(exerciseId, setLog.id, { reps: isNaN(val) ? 0 : Math.max(0, val) });
             }}
-            className="w-full text-center bg-transparent font-mono font-bold text-xs sm:text-sm text-cyan-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full text-center bg-transparent font-mono font-bold text-[11px] sm:text-sm text-cyan-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             placeholder="10"
           />
         </div>
 
         {/* 4. Distance / Km Input */}
-        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-emerald-500 rounded-lg px-1 h-9 transition-colors">
+        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-emerald-500 rounded-lg px-0.5 sm:px-1 h-8 sm:h-9 transition-colors min-w-0">
           <input
             type="number"
             inputMode="decimal"
@@ -127,13 +127,13 @@ export function CardioSetRow({
               const val = parseFloat(e.target.value);
               void updateSet(exerciseId, setLog.id, { weight: isNaN(val) ? 0 : Math.max(0, val) });
             }}
-            className="w-full text-center bg-transparent font-mono font-bold text-xs sm:text-sm text-emerald-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full text-center bg-transparent font-mono font-bold text-[11px] sm:text-sm text-emerald-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             placeholder="1.0"
           />
         </div>
 
         {/* 5. Resistance / Level Input */}
-        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-purple-500 rounded-lg px-1 h-9 transition-colors">
+        <div className="flex items-center bg-zinc-950 border border-zinc-800 focus-within:border-purple-500 rounded-lg px-0.5 sm:px-1 h-8 sm:h-9 transition-colors min-w-0">
           <input
             type="number"
             inputMode="decimal"
@@ -143,7 +143,7 @@ export function CardioSetRow({
               const val = parseFloat(e.target.value);
               void updateSet(exerciseId, setLog.id, { rpe: isNaN(val) ? 0 : Math.max(0, val) });
             }}
-            className="w-full text-center bg-transparent font-mono font-bold text-xs sm:text-sm text-purple-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-full text-center bg-transparent font-mono font-bold text-[11px] sm:text-sm text-purple-200 placeholder:text-zinc-600 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             placeholder="1"
           />
         </div>
@@ -152,7 +152,7 @@ export function CardioSetRow({
         <button
           type="button"
           onClick={() => setShowSteppers((prev) => !prev)}
-          className={`w-7 h-8 rounded-lg flex items-center justify-center border transition-colors ${
+          className={`w-6 h-7 sm:w-7 sm:h-8 rounded-lg flex items-center justify-center border transition-colors ${
             showSteppers
               ? "bg-zinc-800 border-zinc-600 text-zinc-200"
               : "bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-200"
@@ -170,21 +170,21 @@ export function CardioSetRow({
         <button
           type="button"
           onClick={() => void toggleSetCompleted(exerciseId, setLog.id)}
-          className={`w-9 h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
+          className={`w-8 h-7 sm:w-9 sm:h-8 rounded-lg flex items-center justify-center border transition-all active:scale-95 ${
             setLog.isCompleted
               ? "bg-emerald-500 border-emerald-400 text-zinc-950 shadow-md shadow-emerald-500/20 font-bold"
               : "bg-zinc-800/80 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
           }`}
           title={setLog.isCompleted ? "Completed" : "Mark Set Done"}
         >
-          <Check className={`w-4 h-4 ${setLog.isCompleted ? "stroke-[3]" : "stroke-[2]"}`} />
+          <Check className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${setLog.isCompleted ? "stroke-[3]" : "stroke-[2]"}`} />
         </button>
 
         {/* 8. Delete Set Button */}
         <button
           type="button"
           onClick={() => void removeSet(exerciseId, setLog.id)}
-          className="w-6 h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
+          className="w-5 h-7 sm:w-6 sm:h-8 rounded-lg flex items-center justify-center text-zinc-600 hover:text-red-400 hover:bg-red-500/10 active:scale-90 transition-colors"
           title="Delete this set"
         >
           <Trash2 className="w-3.5 h-3.5" />

@@ -10,6 +10,7 @@ import {
   SessionDetailData,
   isCardioExercise,
 } from "@/types/workout";
+import { formatLocalDate } from "@/lib/utils/date";
 
 /**
  * Calculate weekly workout streak for Monday - Sunday of the current week
@@ -36,12 +37,12 @@ export async function getWeeklyWorkoutStreak(): Promise<{
     .toArray();
 
   const completedDates = new Set(
-    completedSessions.map((s) => new Date(s.startTime).toISOString().slice(0, 10))
+    completedSessions.map((s) => formatLocalDate(new Date(s.startTime)))
   );
 
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const shortLabels = ["M", "T", "W", "T", "F", "S", "S"];
-  const todayStr = now.toISOString().slice(0, 10);
+  const todayStr = formatLocalDate(now);
 
   const days: StreakDay[] = [];
   let completedCount = 0;
@@ -49,7 +50,7 @@ export async function getWeeklyWorkoutStreak(): Promise<{
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const dateStr = d.toISOString().slice(0, 10);
+    const dateStr = formatLocalDate(d);
     const isCompleted = completedDates.has(dateStr);
     if (isCompleted) completedCount++;
 
